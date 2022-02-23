@@ -4,22 +4,23 @@
 , system ? builtins.currentSystem
 }:
 let
-  pkgs = import nixpkgs {
-    inherit system;
-    crossSystem = {
-      libc = "musl";
-      config = "mips-unknown-linux-musl";
-      openssl.system = "linux-generic32";
-      withTLS = true;
+  crossSystems.ath79 = {
+    libc = "musl";
+    config = "mips-unknown-linux-musl";
+    openssl.system = "linux-generic32";
+    withTLS = true;
 
-      name = "ath79"; # idk
-      linux-kernel = {
-        name = "ath79";
-        target = "uImage";
-        installTarget = "uImage";
-        autoModules = false;
-      };
+    name = "ath79"; # idk
+    linux-kernel = {
+      name = "ath79";
+      target = "uImage";
+      installTarget = "uImage";
+      autoModules = false;
     };
+  };
+
+  pkgsForCrossSystem = crossSystem: import nixpkgs {
+    inherit system crossSystem;
     config.allowUnsupportedSystem = true;
     overlays = [
       (self: super:
@@ -33,7 +34,8 @@ let
     ];
   };
 
-  targets = let inherit (pkgs) lib; in
+  mkTargets = pkgs:
+    let inherit (pkgs) lib; in
     lib.makeScope pkgs.newScope (self: {
       openwrt-src = builtins.fetchGit {
         url = https://git.openwrt.org/openwrt/openwrt.git;
@@ -227,16 +229,25 @@ let
         set +x
       '';
     });
+
+  pkgs = pkgsForCrossSystem crossSystems.ath79;
+  targets = mkTargets pkgs;
+  mkDevice = crossSystem:
+    let
+      pkgs = pkgsForCrossSystem crossSystem;
+      targets = mkTargets pkgs;
+    in
+    {
+      inherit (targets)
+        openwrt-src
+        initramfs
+        cal-wifi
+        kernelSrc
+        kernel
+        dtb
+        boot
+        ;
+      inherit pkgs;
+    };
 in
-{
-  inherit (targets)
-    openwrt-src
-    initramfs
-    cal-wifi
-    kernelSrc
-    kernel
-    dtb
-    boot
-    ;
-  inherit pkgs;
-}
+builtins.mapAttrs (name: mkDevice) crossSystems
