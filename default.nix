@@ -4,23 +4,66 @@
 , system ? builtins.currentSystem
 }:
 let
-  crossSystems.ath79 = {
-    libc = "musl";
-    config = "mips-unknown-linux-musl";
-    openssl.system = "linux-generic32";
-    withTLS = true;
+  crossSystems = {
+    ath79 = {
+      crossSystem = {
+        libc = "musl";
+        config = "mips-unknown-linux-musl";
+        openssl.system = "linux-generic32";
+        withTLS = true;
 
-    name = "ath79"; # idk
-    linux-kernel = {
-      name = "ath79";
-      target = "uImage";
-      installTarget = "uImage";
-      autoModules = false;
+        name = "ath79"; # idk
+        linux-kernel = {
+          name = "ath79";
+          target = "uImage";
+          installTarget = "uImage";
+          autoModules = false;
+          baseConfig = "ath79_defconfig";
+        };
+      };
+      openwrtPatchDirectories = [
+        "target/linux/generic/backport-5.10"
+        "target/linux/generic/pending-5.10"
+        "target/linux/ath79/patches-5.10"
+      ];
+      openwrtPatchFiles = [
+        "target/linux/generic/files/"
+        "target/linux/ath79/files/"
+      ];
+    };
+
+    mt7621 = {
+      crossSystem = {
+        libc = "musl";
+        config = "mips-unknown-linux-musl";
+        openssl.system = "linux-generic32";
+        withTLS = true;
+
+        name = "mt7621"; # idk
+        linux-kernel = {
+          name = "mt7621";
+          target = "uImage";
+          installTarget = "uImage";
+          autoModules = false;
+          baseConfig = "defconfig";
+        };
+      };
+      openwrtPatchDirectories = [
+        "target/linux/generic/backport-5.10"
+        "target/linux/generic/pending-5.10"
+        "target/linux/ramips/patches-5.10"
+      ];
+      openwrtPatchFiles = [
+        "target/linux/generic/files/"
+        "target/linux/ramips/files/"
+      ];
+
     };
   };
 
-  pkgsForCrossSystem = crossSystem: import nixpkgs {
-    inherit system crossSystem;
+  pkgsForCrossSystem = targetSystem: import nixpkgs {
+    inherit system;
+    inherit (targetSystem) crossSystem;
     config.allowUnsupportedSystem = true;
     overlays = [
       (self: super:
@@ -31,10 +74,10 @@ let
             filesInDir = dir: map ({ path, ... }: path) (super.lib.filter (entry: entry.type == "regular") (lib.elementsInDir dir));
           };
         })
-    ];
+    ] ++ (targetSystem.overlays or [ ]);
   };
 
-  mkTargets = pkgs:
+  mkTargets = targetSystem: pkgs:
     let inherit (pkgs) lib; in
     lib.makeScope pkgs.newScope (self: {
       openwrt-src = builtins.fetchGit {
@@ -120,16 +163,13 @@ let
 
       kernelSrc = (pkgs.applyPatches {
         inherit (pkgs.linux_5_10) src;
-        patches = [ ]
-          ++ (lib.filesInDir "${self.openwrt-src}/target/linux/generic/backport-5.10")
-          ++ (lib.filesInDir "${self.openwrt-src}/target/linux/generic/pending-5.10")
-          ++ (lib.filesInDir "${self.openwrt-src}/target/linux/ath79/patches-5.10")
+        patches = map (dir: lib.filesInDir "${self.openwrt-src}/${dir}")
+          (targetSystem.openwrtPatchDirectories or [ ])
         ;
       }).overrideAttrs (o: {
         prePatch = ''
           (
-          ${pkgs.pkgsBuildHost.rsync}/bin/rsync -rt ${self.openwrt-src}/target/linux/generic/files/ ./
-          ${pkgs.pkgsBuildHost.rsync}/bin/rsync -rt ${self.openwrt-src}/target/linux/ath79/files/ ./
+          ${lib.concatMapStringsSep "\n" (dir: "${pkgs.pkgsBuildHost.rsync}/bin/rsync -rt ${self.openwrt-src}/${dir} ./") (targetSystem.openwrtPatchFiles or [])}
           )
         '';
       });
@@ -137,7 +177,6 @@ let
       kernel = (pkgs.buildLinux {
         inherit (pkgs.linux_5_10) version;
         src = self.kernelSrc;
-        defconfig = "ath79_defconfig";
         useCommonConfig = false;
         autoModules = false;
         ignoreConfigErrors = false;
@@ -235,7 +274,7 @@ let
   mkDevice = crossSystem:
     let
       pkgs = pkgsForCrossSystem crossSystem;
-      targets = mkTargets pkgs;
+      targets = mkTargets crossSystem pkgs;
     in
     {
       inherit (targets)
