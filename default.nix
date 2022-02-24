@@ -114,7 +114,8 @@ let
         #CONFIG_PCI_MT7621_PHY = yes;
         #CONFIG_SOC_MT7621 = yes;
         #CONFIG_SPI_MT7621 = yes;
-
+        BLK_DEV_INITRD = yes;
+        RD_GZIP = yes;
 
 
         ARCH_32BIT_OFF_T = yes;
@@ -133,7 +134,8 @@ let
         CLOCKSOURCE_WATCHDOG = yes;
         CLONE_BACKWARDS = yes;
         #CMDLINE="rootfstype=squashfs,jffs2";
-        #CMDLINE_BOOL=yes;
+        CMDLINE = freeform "rd_start=0x81000000 rd_size=6538715";
+        CMDLINE_BOOL = yes;
         # CMDLINE_OVERRIDE is not set
         COMMON_CLK = yes;
         # COMMON_CLK_BOSTON is not set
@@ -421,7 +423,7 @@ let
           lib = super.lib // {
             elementsInDir = ignores: dir: lib.mapAttrsToList (name: type: { inherit type name; path = dir + "/${name}"; })
               (lib.filterAttrs (name: value: (builtins.elem name ignores) != true)
-              (builtins.readDir dir));
+                (builtins.readDir dir));
             filesInDir = ignores: dir: map ({ path, ... }: path) (super.lib.filter (entry: entry.type == "regular") (lib.elementsInDir ignores dir));
           };
         })
@@ -463,6 +465,7 @@ let
         extraConfig = ''
           CONFIG_IMAGE_FORMAT_LEGACY=y
           CONFIG_SUPPORT_RAW_INITRD=y
+          CONFIG_LOGLEVEL=8
         '';
         filesToInstall = [
           "u-boot.bin"
@@ -562,7 +565,7 @@ let
 
       kernelSrc = (pkgs.applyPatches {
         inherit (pkgs.linux_5_10) src;
-        patches = map (dir: lib.filesInDir (targetSystem.ignoredPatches or []) "${self.openwrt-src}/${dir}")
+        patches = map (dir: lib.filesInDir (targetSystem.ignoredPatches or [ ]) "${self.openwrt-src}/${dir}")
           (targetSystem.openwrtPatchDirectories or [ ])
         ;
       }).overrideAttrs (o: {
@@ -597,18 +600,42 @@ let
 
       # Create a uboot image that can be booted from the builtin cudy loader.
       # We can't change the name as the loader matches on that.
-      uboot-mtd = pkgs.runCommandNoCC "uboot-mtd-payload" {
-        nativeBuildInputs = [
-          pkgs.pkgsBuildHost.ubootTools
-        ];
-        uboot = self.uboot + "/u-boot.bin";
-      } ''
+      uboot-mtd = pkgs.runCommandNoCC "uboot-mtd-payload"
+        {
+          nativeBuildInputs = [
+            pkgs.pkgsBuildHost.ubootTools
+          ];
+          uboot = self.uboot + "/u-boot.bin";
+        } ''
         mkdir $out
         set -x
         mkimage -A mips -O linux -T kernel -C none -e 0x80700000 -a 0x80700000 -n R13 -d $uboot $out/firmware-mtd.bin
         mkimage -l $out/firmware-mtd.bin
         set +x
       '';
+
+      fit-its = pkgs.pkgsBuildHost.substituteAll {
+        src = ./fit.its;
+        kernel = self.kernel + "/vmlinux.bin";
+        kernelAddress = "0x80001000";
+
+        dtb = self.dtb;
+
+        initrd = self.initramfs + "/initrd.img";
+        initrdAddress = "0x81000000";
+      };
+
+      fit = pkgs.runCommand "fit.itb"
+        {
+          nativeBuildInputs = [
+            pkgs.pkgsBuildHost.ubootTools
+            pkgs.pkgsBuildHost.dtc
+          ];
+        }
+        ''
+          cp ${self.fit-its} fit.its
+          mkimage -f fit.its $out
+        '';
 
       boot = pkgs.runCommandCC "boot"
         {
@@ -648,6 +675,8 @@ let
           lockFile = ./netconf/Cargo.lock;
         };
       };
+
+
     });
 
   pkgs = pkgsForCrossSystem crossSystems.ath79;
@@ -669,6 +698,7 @@ let
         uboot
         uboot-mtd
         netconf
+        fit
         ;
       inherit pkgs;
     };
