@@ -1,5 +1,5 @@
 { nixpkgs ? builtins.fetchTarball {
-    url = "https://github.com/nixos/nixpkgs/archive/58dae9ca1c2c52990e45f358b680e8411a9dfab1.tar.gz";
+    url = "https://github.com/nixos/nixpkgs/archive/9222ae36b208d1c6b55d88e10aa68f969b5b5244.tar.gz";
   }
 , system ? builtins.currentSystem
 }:
@@ -95,6 +95,9 @@ let
         "target/linux/generic/backport-5.10"
         "target/linux/generic/pending-5.10"
         "target/linux/ramips/patches-5.10"
+      ];
+      ignoredPatches = [
+        "841-USB-serial-option-add-ZTE-MF286D-modem.patch" # contained in 5.10.101
       ];
       openwrtPatchFiles = [
         "target/linux/generic/files/"
@@ -414,8 +417,10 @@ let
         let inherit (self) lib; in
         {
           lib = super.lib // {
-            elementsInDir = dir: lib.mapAttrsToList (name: type: { inherit type name; path = dir + "/${name}"; }) (builtins.readDir dir);
-            filesInDir = dir: map ({ path, ... }: path) (super.lib.filter (entry: entry.type == "regular") (lib.elementsInDir dir));
+            elementsInDir = ignores: dir: lib.mapAttrsToList (name: type: { inherit type name; path = dir + "/${name}"; })
+              (lib.filterAttrs (name: value: (builtins.elem name ignores) != true)
+              (builtins.readDir dir));
+            filesInDir = ignores: dir: map ({ path, ... }: path) (super.lib.filter (entry: entry.type == "regular") (lib.elementsInDir ignores dir));
           };
         })
     ] ++ (targetSystem.overlays or [ ]);
@@ -551,7 +556,7 @@ let
 
       kernelSrc = (pkgs.applyPatches {
         inherit (pkgs.linux_5_10) src;
-        patches = map (dir: lib.filesInDir "${self.openwrt-src}/${dir}")
+        patches = map (dir: lib.filesInDir (targetSystem.ignoredPatches or []) "${self.openwrt-src}/${dir}")
           (targetSystem.openwrtPatchDirectories or [ ])
         ;
       }).overrideAttrs (o: {
