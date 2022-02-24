@@ -79,6 +79,8 @@ let
       crossSystem = {
         libc = "musl";
         config = "mips-unknown-linux-musl";
+        gcc.tune = "24kc";
+        gcc.arch = "mips32r2";
         openssl.system = "linux-generic32";
         withTLS = true;
 
@@ -458,6 +460,10 @@ let
           sha256 = "1v9nfn5l1648904w41qjbq3cmgn9ajsa7fpgrj8wxys23k6rfjy2";
         };
         defconfig = "mt7621_cudy_x6_second_stage_defconfig";
+        extraConfig = ''
+          CONFIG_IMAGE_FORMAT_LEGACY=y
+          CONFIG_SUPPORT_RAW_INITRD=y
+        '';
         filesToInstall = [
           "u-boot.bin"
           "u-boot.img"
@@ -589,6 +595,21 @@ let
         $CC -E -nostdinc -x assembler-with-cpp -I linux*/include ${self.openwrt-src}/target/linux/ramips/dts/mt7621_cudy_x6.dts -o - | dtc -o $out
       '';
 
+      # Create a uboot image that can be booted from the builtin cudy loader.
+      # We can't change the name as the loader matches on that.
+      uboot-mtd = pkgs.runCommandNoCC "uboot-mtd-payload" {
+        nativeBuildInputs = [
+          pkgs.pkgsBuildHost.ubootTools
+        ];
+        uboot = self.uboot + "/u-boot.bin";
+      } ''
+        mkdir $out
+        set -x
+        mkimage -A mips -O linux -T kernel -C none -e 0x80700000 -a 0x80700000 -n R13 -d $uboot $out/firmware-mtd.bin
+        mkimage -l $out/firmware-mtd.bin
+        set +x
+      '';
+
       boot = pkgs.runCommandCC "boot"
         {
           nativeBuildInputs = [
@@ -607,7 +628,7 @@ let
         mkimage \
           -A mips \
           -O linux \
-          -C gzip \
+          -C none \
           -T kernel \
           -a 0x80001000 \
           -n Linux-${self.kernel.version} \
@@ -619,6 +640,14 @@ let
         ls -lh $(readlink -f initramfs.img kernel.img)
         set +x
       '';
+
+      netconf = pkgs.rustPlatform.buildRustPackage {
+        name = "netconf";
+        src = ./netconf;
+        cargoLock = {
+          lockFile = ./netconf/Cargo.lock;
+        };
+      };
     });
 
   pkgs = pkgsForCrossSystem crossSystems.ath79;
@@ -638,6 +667,8 @@ let
         dtb
         boot
         uboot
+        uboot-mtd
+        netconf
         ;
       inherit pkgs;
     };
