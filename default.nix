@@ -134,7 +134,7 @@ let
         CLOCKSOURCE_WATCHDOG = yes;
         CLONE_BACKWARDS = yes;
         #CMDLINE="rootfstype=squashfs,jffs2";
-        CMDLINE = freeform "rd_start=0x81000000 rd_size=6538715";
+        CMDLINE = freeform "earlycon=uart8250,mmio32,0x1e000c00 earlyprintk debug";
         CMDLINE_BOOL = yes;
         # CMDLINE_OVERRIDE is not set
         COMMON_CLK = yes;
