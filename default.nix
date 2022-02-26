@@ -466,7 +466,10 @@ let
           CONFIG_IMAGE_FORMAT_LEGACY=y
           CONFIG_SUPPORT_RAW_INITRD=y
           CONFIG_LOGLEVEL=8
+          CONFIG_TRACE=y
+          CONFIG_IDENT_STRING="Cudy X6"
         '';
+          #CONFIG_CMD_TRACE=y
         filesToInstall = [
           "u-boot.bin"
           "u-boot.img"
