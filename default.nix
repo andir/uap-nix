@@ -1,6 +1,7 @@
-{ nixpkgs ? builtins.fetchTarball {
-    url = "https://github.com/nixos/nixpkgs/archive/9222ae36b208d1c6b55d88e10aa68f969b5b5244.tar.gz";
-  }
+let
+  sources = import ./npins;
+in
+{ nixpkgs ? sources.nixpkgs
 , system ? builtins.currentSystem
 }:
 let
