@@ -1,0 +1,38 @@
+From f2c7354c150ccd8ceeffbbd6e87172814a1f8c59 Mon Sep 17 00:00:00 2001
+From: Horatiu Vultur <horatiu.vultur@microchip.com>
+Date: Wed, 24 Apr 2019 17:21:29 +0200
+Subject: [PATCH] arch: mips: Update initrd_start and initrd_end
+
+Microsemi SoC defines CONFIG_SYS_SDRAM_BASE to be 0x80000000, which
+represents the start of kseg0 and represents a virtual address. Meaning
+that the initrd_start and initrd_end point somewhere kseg0.
+When these parameters are passed to linux kernel through DT
+they are pointing somewhere in kseg0 which is a virtual address but linux
+kernel expects the addresses to be physical addresses(in kuseg) because
+it is converting the physical address to a virtual one.
+
+Therefore update the uboot to pass the physical address of initrd_start
+and initrd_end by converting them using the function virt_to_phys before
+setting up the DT.
+
+Signed-off-by: Horatiu Vultur <horatiu.vultur at microchip.com>
+---
+ arch/mips/lib/bootm.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/arch/mips/lib/bootm.c b/arch/mips/lib/bootm.c
+index 7c01dd6..8977614 100755
+--- a/arch/mips/lib/bootm.c
++++ b/arch/mips/lib/bootm.c
+@@ -264,6 +264,8 @@ int arch_fixup_fdt(void *blob)
+ 
+ static int boot_setup_fdt(bootm_headers_t *images)
+ {
++	images->initrd_start = virt_to_phys((void *)images->initrd_start);
++	images->initrd_end = virt_to_phys((void *)images->initrd_end);
+ 	return image_setup_libfdt(images, images->ft_addr, images->ft_len,
+ 		&images->lmb);
+ }
+-- 
+2.35.1
+

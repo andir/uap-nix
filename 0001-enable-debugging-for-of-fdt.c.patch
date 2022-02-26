@@ -1,0 +1,344 @@
+From e09c34b31043d20e78729a355cfa3980b0ec3b3f Mon Sep 17 00:00:00 2001
+From: Andreas Rammhold <andreas@rammhold.de>
+Date: Sat, 26 Feb 2022 17:31:12 +0100
+Subject: [PATCH] enable debugging for of/fdt.c
+
+---
+ arch/mips/ath79/prom.c   |  3 ++
+ arch/mips/kernel/setup.c |  9 +++++
+ drivers/of/fdt.c         | 74 +++++++++++++++++++++++++++-------------
+ 3 files changed, 63 insertions(+), 23 deletions(-)
+
+diff --git a/arch/mips/ath79/prom.c b/arch/mips/ath79/prom.c
+index 25724b4e97fd7..2d349851e546c 100644
+--- a/arch/mips/ath79/prom.c
++++ b/arch/mips/ath79/prom.c
+@@ -21,10 +21,13 @@
+ 
+ void __init prom_init(void)
+ {
++	int i;
+ 	fw_init_cmdline();
+ 
+ #ifdef CONFIG_BLK_DEV_INITRD
+ 	/* Read the initrd address from the firmware environment */
++	for (i = 0; i < 100; i ++)
++		pr_warn("calling ath79 initramfs stuff!");
+ 	initrd_start = fw_getenvl("initrd_start");
+ 	if (initrd_start) {
+ 		initrd_start = KSEG0ADDR(initrd_start);
+diff --git a/arch/mips/kernel/setup.c b/arch/mips/kernel/setup.c
+index 9d11f68a9e8bb..da1c438408e0b 100644
+--- a/arch/mips/kernel/setup.c
++++ b/arch/mips/kernel/setup.c
+@@ -117,8 +117,12 @@ void __init detect_memory_region(phys_addr_t start, phys_addr_t sz_min, phys_add
+ 
+ static int __init rd_start_early(char *p)
+ {
++	int i;
+ 	unsigned long start = memparse(p, &p);
+ 
++	for (i = 0; i < 100; i ++)
++		pr_warn("rd_start_early start=%i", (int)start);
++
+ #ifdef CONFIG_64BIT
+ 	/* Guess if the sign extension was forgotten by bootloader */
+ 	if (start < XKPHYS)
+@@ -141,6 +145,8 @@ early_param("rd_size", rd_size_early);
+ static unsigned long __init init_initrd(void)
+ {
+ 	unsigned long end;
++        pr_warn("init_initrd: initrd_start=0x%lx  initrd_end=0x%lx\n",
++			initrd_start, initrd_end);
+ 
+ 	/*
+ 	 * Board specific code or command line parser should have
+@@ -173,6 +179,7 @@ static unsigned long __init init_initrd(void)
+ 	ROOT_DEV = Root_RAM0;
+ 	return PFN_UP(end);
+ disable:
++	pr_err("init_initrd disable\n");
+ 	initrd_start = 0;
+ 	initrd_end = 0;
+ 	return 0;
+@@ -210,6 +217,8 @@ static void __init maybe_bswap_initrd(void)
+ static void __init finalize_initrd(void)
+ {
+ 	unsigned long size = initrd_end - initrd_start;
++	pr_info("initrd_start: 0x%i\n", (int)initrd_start);
++	pr_info("initrd_end: 0x%i\n", (int)initrd_end);
+ 
+ 	if (size == 0) {
+ 		printk(KERN_INFO "Initrd not found or empty");
+diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
+index 57ff31b6b1e47..074c021089bc3 100644
+--- a/drivers/of/fdt.c
++++ b/drivers/of/fdt.c
+@@ -6,6 +6,8 @@
+  * benh@kernel.crashing.org
+  */
+ 
++#define DEBUG
++
+ #define pr_fmt(fmt)	"OF: fdt: " fmt
+ 
+ #include <linux/crc32.h>
+@@ -72,7 +74,7 @@ void __init of_fdt_limit_memory(int limit)
+ 		val = fdt_getprop(initial_boot_params, memory, "reg", &len);
+ 		if (len > limit*cell_size) {
+ 			len = limit*cell_size;
+-			pr_debug("Limiting number of entries to %d\n", limit);
++			pr_warn("Limiting number of entries to %d\n", limit);
+ 			fdt_setprop(initial_boot_params, memory, "reg", val,
+ 					len);
+ 		}
+@@ -196,7 +198,7 @@ static void populate_properties(const void *blob,
+ 			pprev      = &pp->next;
+ 			memcpy(pp->value, ps, len - 1);
+ 			((char *)pp->value)[len - 1] = 0;
+-			pr_debug("fixed up name for %s -> %s\n",
++			pr_warn("fixed up name for %s -> %s\n",
+ 				 nodename, (char *)pp->value);
+ 		}
+ 	}
+@@ -373,17 +375,17 @@ void *__unflatten_device_tree(const void *blob,
+ 	int size;
+ 	void *mem;
+ 
+-	pr_debug(" -> unflatten_device_tree()\n");
++	pr_warn(" -> unflatten_device_tree()\n");
+ 
+ 	if (!blob) {
+-		pr_debug("No device tree pointer\n");
++		pr_warn("No device tree pointer\n");
+ 		return NULL;
+ 	}
+ 
+-	pr_debug("Unflattening device tree:\n");
+-	pr_debug("magic: %08x\n", fdt_magic(blob));
+-	pr_debug("size: %08x\n", fdt_totalsize(blob));
+-	pr_debug("version: %08x\n", fdt_version(blob));
++	pr_warn("Unflattening device tree:\n");
++	pr_warn("magic: %08x\n", fdt_magic(blob));
++	pr_warn("size: %08x\n", fdt_totalsize(blob));
++	pr_warn("version: %08x\n", fdt_version(blob));
+ 
+ 	if (fdt_check_header(blob)) {
+ 		pr_err("Invalid device tree blob header\n");
+@@ -396,7 +398,7 @@ void *__unflatten_device_tree(const void *blob,
+ 		return NULL;
+ 
+ 	size = ALIGN(size, 4);
+-	pr_debug("  size is %d, allocating...\n", size);
++	pr_warn("  size is %d, allocating...\n", size);
+ 
+ 	/* Allocate memory for the expanded device tree */
+ 	mem = dt_alloc(size + 4, __alignof__(struct device_node));
+@@ -407,7 +409,7 @@ void *__unflatten_device_tree(const void *blob,
+ 
+ 	*(__be32 *)(mem + size) = cpu_to_be32(0xdeadbeef);
+ 
+-	pr_debug("  unflattening %p...\n", mem);
++	pr_warn("  unflattening %p...\n", mem);
+ 
+ 	/* Second pass, do actual unflattening */
+ 	unflatten_dt_nodes(blob, mem, dad, mynodes);
+@@ -417,10 +419,10 @@ void *__unflatten_device_tree(const void *blob,
+ 
+ 	if (detached && mynodes) {
+ 		of_node_set_flag(*mynodes, OF_DETACHED);
+-		pr_debug("unflattened tree is detached\n");
++		pr_warn("unflattened tree is detached\n");
+ 	}
+ 
+-	pr_debug(" <- unflatten_device_tree()\n");
++	pr_warn(" <- unflatten_device_tree()\n");
+ 	return mem;
+ }
+ 
+@@ -451,6 +453,8 @@ void *of_fdt_unflatten_tree(const unsigned long *blob,
+ {
+ 	void *mem;
+ 
++	pr_warn("of_fdt_unflatten_tree");
++
+ 	mutex_lock(&of_fdt_unflatten_mutex);
+ 	mem = __unflatten_device_tree(blob, dad, mynodes, &kernel_tree_alloc,
+ 				      true);
+@@ -501,7 +505,7 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
+ 
+ 		if (size &&
+ 		    early_init_dt_reserve_memory_arch(base, size, nomap) == 0)
+-			pr_debug("Reserved memory: reserved region for node '%s': base %pa, size %lu MiB\n",
++			pr_warn("Reserved memory: reserved region for node '%s': base %pa, size %lu MiB\n",
+ 				uname, &base, (unsigned long)(size / SZ_1M));
+ 		else
+ 			pr_info("Reserved memory: failed to reserve memory for node '%s': base %pa, size %lu MiB\n",
+@@ -635,6 +639,8 @@ int __init of_scan_flat_dt(int (*it)(unsigned long node,
+ 	const char *pathp;
+ 	int offset, rc = 0, depth = -1;
+ 
++	pr_warn("of_scan_flat_dt, blob=%p", blob);
++
+ 	if (!blob)
+ 		return 0;
+ 
+@@ -643,7 +649,9 @@ int __init of_scan_flat_dt(int (*it)(unsigned long node,
+ 	     offset = fdt_next_node(blob, offset, &depth)) {
+ 
+ 		pathp = fdt_get_name(blob, offset, NULL);
++		pr_warn("of_scan_flat_dt, pathp=%s", pathp);
+ 		rc = it(offset, pathp, depth, data);
++		pr_warn("of_scan_flat_dt, rc=%i", rc);
+ 	}
+ 	return rc;
+ }
+@@ -862,6 +870,9 @@ static void __early_init_dt_declare_initrd(unsigned long start,
+ 		initrd_end = (unsigned long)__va(end);
+ 		initrd_below_start_ok = 1;
+ 	}
++
++	pr_warn("initrd_start=%x", initrd_start);
++	pr_warn("initrd_start=%x", initrd_end);
+ }
+ 
+ /**
+@@ -874,28 +885,35 @@ static void __init early_init_dt_check_for_initrd(unsigned long node)
+ 	int len;
+ 	const __be32 *prop;
+ 
+-	pr_debug("Looking for initrd properties... ");
++	pr_warn("Looking for initrd properties... ");
+ 
+ 	prop = of_get_flat_dt_prop(node, "linux,initrd-start", &len);
+-	if (!prop)
++	if (!prop) {
++		pr_warn("linux,initrd-start property not found");
+ 		return;
++	}
+ 	start = of_read_number(prop, len/4);
+ 
+ 	prop = of_get_flat_dt_prop(node, "linux,initrd-end", &len);
+-	if (!prop)
++	if (!prop) {
++		pr_warn("linux,initrd-end property not found");
+ 		return;
++	}
+ 	end = of_read_number(prop, len/4);
+ 
+ 	__early_init_dt_declare_initrd(start, end);
+ 	phys_initrd_start = start;
+ 	phys_initrd_size = end - start;
+ 
+-	pr_debug("initrd_start=0x%llx  initrd_end=0x%llx\n",
++	pr_warn("initrd_start=0x%llx  initrd_end=0x%llx\n",
+ 		 (unsigned long long)start, (unsigned long long)end);
+ }
+ #else
+ static inline void early_init_dt_check_for_initrd(unsigned long node)
+ {
++	int i;
++	for (i = 0; i < 50; i++)
++		pr_warn("early_init_dt_check_for_initrd NOT IMPLEMTEND!!!!!");
+ }
+ #endif /* CONFIG_BLK_DEV_INITRD */
+ 
+@@ -909,6 +927,8 @@ int __init early_init_dt_scan_chosen_stdout(void)
+ 	const struct earlycon_id **p_match;
+ 	const void *fdt = initial_boot_params;
+ 
++	pr_warn("early_init_dt_scan_chosen_stdout");
++
+ 	offset = fdt_path_offset(fdt, "/chosen");
+ 	if (offset < 0)
+ 		offset = fdt_path_offset(fdt, "/chosen@0");
+@@ -967,12 +987,12 @@ int __init early_init_dt_scan_root(unsigned long node, const char *uname,
+ 	prop = of_get_flat_dt_prop(node, "#size-cells", NULL);
+ 	if (prop)
+ 		dt_root_size_cells = be32_to_cpup(prop);
+-	pr_debug("dt_root_size_cells = %x\n", dt_root_size_cells);
++	pr_warn("dt_root_size_cells = %x\n", dt_root_size_cells);
+ 
+ 	prop = of_get_flat_dt_prop(node, "#address-cells", NULL);
+ 	if (prop)
+ 		dt_root_addr_cells = be32_to_cpup(prop);
+-	pr_debug("dt_root_addr_cells = %x\n", dt_root_addr_cells);
++	pr_warn("dt_root_addr_cells = %x\n", dt_root_addr_cells);
+ 
+ 	/* break now */
+ 	return 1;
+@@ -1010,7 +1030,7 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
+ 	endp = reg + (l / sizeof(__be32));
+ 	hotpluggable = of_get_flat_dt_prop(node, "hotpluggable", NULL);
+ 
+-	pr_debug("memory scan node %s, reg size %d,\n", uname, l);
++	pr_warn("memory scan node %s, reg size %d,\n", uname, l);
+ 
+ 	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
+ 		u64 base, size;
+@@ -1020,7 +1040,7 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
+ 
+ 		if (size == 0)
+ 			continue;
+-		pr_debug(" - %llx ,  %llx\n", (unsigned long long)base,
++		pr_warn(" - %llx ,  %llx\n", (unsigned long long)base,
+ 		    (unsigned long long)size);
+ 
+ 		early_init_dt_add_memory_arch(base, size);
+@@ -1043,7 +1063,7 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
+ 	const char *p;
+ 	const void *rng_seed;
+ 
+-	pr_debug("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
++	pr_warn("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
+ 
+ 	if (depth != 1 || !data ||
+ 	    (strcmp(uname, "chosen") != 0 && strcmp(uname, "chosen@0") != 0))
+@@ -1074,7 +1094,7 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
+ #endif
+ #endif /* CONFIG_CMDLINE */
+ 
+-	pr_debug("Command line is: %s\n", (char *)data);
++	pr_warn("Command line is: %s\n", (char *)data);
+ 
+ 	rng_seed = of_get_flat_dt_prop(node, "rng-seed", &l);
+ 	if (rng_seed && l > 0) {
+@@ -1194,6 +1214,8 @@ void __init early_init_dt_scan_nodes(void)
+ {
+ 	int rc = 0;
+ 
++	pr_warn("early_init_dt_scan_nodes");
++
+ 	/* Retrieve various information from the /chosen node */
+ 	rc = of_scan_flat_dt(early_init_dt_scan_chosen, boot_command_line);
+ 	if (!rc)
+@@ -1228,6 +1250,8 @@ bool __init early_init_dt_scan(void *params)
+  */
+ void __init unflatten_device_tree(void)
+ {
++	pr_warn("unflatten_device_tree");
++
+ 	__unflatten_device_tree(initial_boot_params, NULL, &of_root,
+ 				early_init_dt_alloc_memory_arch, false);
+ 
+@@ -1253,6 +1277,8 @@ void __init unflatten_and_copy_device_tree(void)
+ 	int size;
+ 	void *dt;
+ 
++	pr_warn("unflatten_and_copy_device_tree");
++
+ 	if (!initial_boot_params) {
+ 		pr_warn("No valid device tree found, continuing without\n");
+ 		return;
+@@ -1283,6 +1309,8 @@ static int __init of_fdt_raw_init(void)
+ 	static struct bin_attribute of_fdt_raw_attr =
+ 		__BIN_ATTR(fdt, S_IRUSR, of_fdt_raw_read, NULL, 0);
+ 
++	pr_warn("of_fdt_raw_init");
++
+ 	if (!initial_boot_params)
+ 		return 0;
+ 
+-- 
+2.35.1
+

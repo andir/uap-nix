@@ -79,9 +79,10 @@ let
     mt7621 = {
       crossSystem = {
         libc = "musl";
-        config = "mips-unknown-linux-musl";
+        config = "mipsel-unknown-linux-musl";
         gcc.tune = "24kc";
         gcc.arch = "mips32r2";
+        gcc.float = "soft";
         openssl.system = "linux-generic32";
         withTLS = true;
 
@@ -469,8 +470,9 @@ let
           CONFIG_LOGLEVEL=8
           CONFIG_TRACE=y
           CONFIG_IDENT_STRING="Cudy X6"
+          CONFIG_BOOTSTAGE_REPORT=y
         '';
-          #CONFIG_CMD_TRACE=y
+        #CONFIG_CMD_TRACE=y
         filesToInstall = [
           "u-boot.bin"
           "u-boot.img"
@@ -484,13 +486,18 @@ let
           "u-boot.cfg.configs"
         ];
       }).overrideAttrs ({ nativeBuildInputs, ... }: {
-        patches = [ ];
+        patches = [ ./0001-arch-mips-Update-initrd_start-and-initrd_end.patch ];
         nativeBuildInputs = nativeBuildInputs ++ [ pkgs.pkgsBuildHost.python2 ];
+        #postConfigure = ''
+        #  set -x
+        #  grep TRACE .config
+        #  set +x
+        #'';
       });
 
       initramfs = pkgs.makeInitrd {
-        compressor = "${pkgs.pkgsBuildHost.zstd}/bin/zstd";
-        makeUInitrd = true;
+        compressor = "cat";
+        makeUInitrd = false;
         contents = [{
           object = (pkgs.buildEnv {
             name = "uap-nix-bin";
@@ -571,6 +578,7 @@ let
         inherit (pkgs.linux_5_10) src;
         patches = map (dir: lib.filesInDir (targetSystem.ignoredPatches or [ ]) "${self.openwrt-src}/${dir}")
           (targetSystem.openwrtPatchDirectories or [ ])
+        ++ [ ./0001-enable-debugging-for-of-fdt.c.patch ]
         ;
       }).overrideAttrs (o: {
         prePatch = ''
@@ -599,7 +607,7 @@ let
 
       dtb = pkgs.runCommandCC "uaclite.dtb" { nativeBuildInputs = [ pkgs.pkgsBuildHost.dtc ]; } ''
         unpackFile ${self.kernel.src}
-        $CC -E -nostdinc -x assembler-with-cpp -I linux*/include ${self.openwrt-src}/target/linux/ramips/dts/mt7621_cudy_x6.dts -o - | dtc -o $out
+        $CC -E -nostdinc -x assembler-with-cpp -I linux*/include -I ${self.openwrt-src}/target/linux/ramips/dts ${./mt7621_cudy_x6.dts} -o - | dtc -o $out
       '';
 
       # Create a uboot image that can be booted from the builtin cudy loader.
@@ -625,7 +633,7 @@ let
 
         dtb = self.dtb;
 
-        initrd = self.initramfs + "/initrd.img";
+        initrd = self.initramfs + "/initrd";
         initrdAddress = "0x81000000";
       };
 
