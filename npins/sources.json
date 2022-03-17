@@ -1,5 +1,17 @@
 {
   "pins": {
+    "mt76": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "openwrt",
+        "repo": "mt76"
+      },
+      "branch": "master",
+      "revision": "64c74dc93f68566cd2c199d2951482ee55ca8b9a",
+      "url": "https://github.com/openwrt/mt76/archive/64c74dc93f68566cd2c199d2951482ee55ca8b9a.tar.gz",
+      "hash": "0avk06n6wj5s7f749a4ggqf0ckiv8vnrpk9xmsjiln04asl92r1y"
+    },
     "nixpkgs": {
       "type": "Git",
       "repository": {

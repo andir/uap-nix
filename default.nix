@@ -80,7 +80,7 @@ let
       crossSystem = {
         libc = "musl";
         config = "mipsel-unknown-linux-musl";
-        gcc.tune = "24kc";
+        gcc.tune = "1004kc";
         gcc.arch = "mips32r2";
         gcc.float = "soft";
         openssl.system = "linux-generic32";
@@ -96,6 +96,15 @@ let
         };
       };
       openwrtPatchDirectories = [
+        #"package/kernel/mac80211/patches/ath"
+        #"package/kernel/mac80211/patches/ath10k"
+        #"package/kernel/mac80211/patches/ath5k"
+        #"package/kernel/mac80211/patches/ath9k"
+        #"package/kernel/mac80211/patches/brcm"
+        #"package/kernel/mac80211/patches/build"
+        #"package/kernel/mac80211/patches/mwl"
+        #"package/kernel/mac80211/patches/rt2x00"
+        #"package/kernel/mac80211/patches/subsys"
         "target/linux/generic/backport-5.10"
         "target/linux/generic/pending-5.10"
         "target/linux/ramips/patches-5.10"
@@ -108,6 +117,17 @@ let
         "target/linux/ramips/files/"
       ];
       structuredKernelExtraConfig = pkgs: with pkgs.lib.kernel; {
+        MODULES = yes;
+        WIRELESS = yes;
+        CFG80211 = yes;
+        MAC80211 = yes;
+        MT7915E = yes;
+        IPV6 = yes;
+        WIREGUARD = module;
+        #MODULE_SIG = yes;
+        #MODULE_SIG_FORMAT = yes;
+        #SYSTEM_DATA_VERIFICATION = yes; # required for mac80211
+
         #CONFIG_GPIO_MT7621 = yes;
         #CONFIG_I2C_MT7621 = yes;
         #CONFIG_MT7621_WDT = yes;
@@ -245,8 +265,6 @@ let
         MEMFD_CREATE = yes;
         MFD_SYSCON = yes;
         MIGRATION = yes;
-        MIKROTIK = yes;
-        MIKROTIK_RB_SYSFS = yes;
         MIPS = yes;
         #MIPS_ASID_BITS=8;
         #MIPS_ASID_SHIFT=0;
@@ -574,19 +592,21 @@ let
       '';
 
 
-      kernelSrc = (pkgs.applyPatches {
-        inherit (pkgs.linux_5_10) src;
-        patches = map (dir: lib.filesInDir (targetSystem.ignoredPatches or [ ]) "${self.openwrt-src}/${dir}")
-          (targetSystem.openwrtPatchDirectories or [ ])
-        ++ [ ./0001-enable-debugging-for-of-fdt.c.patch ]
-        ;
-      }).overrideAttrs (o: {
-        prePatch = ''
-          (
-          ${lib.concatMapStringsSep "\n" (dir: "${pkgs.pkgsBuildHost.rsync}/bin/rsync -rt ${self.openwrt-src}/${dir} ./") (targetSystem.openwrtPatchFiles or [])}
-          )
-        '';
-      });
+      kernelSrc =
+        pkgs.linux_5_16.src;
+      #(pkgs.applyPatches {
+      #  inherit (pkgs.linux_5_10) src;
+      #  patches = map (dir: lib.filesInDir (targetSystem.ignoredPatches or [ ]) "${self.openwrt-src}/${dir}")
+      #    (targetSystem.openwrtPatchDirectories or [ ])
+      #  ++ [ ./0001-enable-debugging-for-of-fdt.c.patch ]
+      #  ;
+      #}).overrideAttrs (o: {
+      #  prePatch = ''
+      #    (
+      #    ${lib.concatMapStringsSep "\n" (dir: "${pkgs.pkgsBuildHost.rsync}/bin/rsync -rt ${self.openwrt-src}/${dir} ./") (targetSystem.openwrtPatchFiles or [])}
+      #    )
+      #  '';
+      #});
 
       kernel = (pkgs.buildLinux {
         inherit (pkgs.linux_5_10) version;
@@ -597,13 +617,87 @@ let
         kernelPatches = [ ];
         structuredExtraConfig = pkgs.lib.mkForce ((targetSystem.structuredKernelExtraConfig or (_: { })) pkgs);
       }).overrideAttrs (o: rec {
-        installPhase = ''
-          mkdir -p $out
-          cp -v arch/mips/boot/uImage $out/
-          cp -v arch/mips/boot/vmlinu[xz]* $out/
-          cp -v vmlinux $out/
-        '';
+        #installPhase = ''
+        #  mkdir -p $out
+        #  cp -v arch/mips/boot/uImage $out/
+        #  cp -v arch/mips/boot/vmlinu[xz]* $out/
+        #  cp -v vmlinux $out/
+        #'';
+        postInstall = lib.replaceStrings ["find . -type f -perm -u=w -print0 | xargs -0 -r rm"] [""] o.postInstall;
+        #  ${o.postInstall}
+        #  chmod -R +rw $dev
+        #  #cp -rv ${self.kernelSrc}/arch/mips/* $dev/lib/modules/${self.kernel.modDirVersion}/source/arch/mips/.
+        #'';
       });
+
+      mac80211 = pkgs.stdenv.mkDerivation {
+        pname = "mac80211";
+        version = "5.15.8-1";
+        src = pkgs.pkgsBuildHost.fetchurl {
+          url = "https://mirrors.edge.kernel.org/pub/linux/kernel/projects/backports/stable/v5.15.8/backports-5.15.8-1.tar.xz";
+          sha256 = "08383fgkxp8qxzwf4hnc9hyfwv30rc7piv1jclarvw9lq1cvcwcz";
+        };
+        nativeBuildInputs = [
+          pkgs.pkgsBuildHost.flex
+          pkgs.pkgsBuildHost.bison
+          pkgs.pkgsBuildHost.perl
+          pkgs.pkgsBuildHost.gmp
+        ];
+        preBuild = ''
+          patchShebangs scripts
+          echo "CPTCFG_CFG80211=m" >> .config
+          echo "CPTCFG_MAC80211=m" >> .config
+          make \
+          LEX=flex \
+          ARCH=${pkgs.stdenv.hostPlatform.linuxArch} \
+          CROSS_COMPILE=${pkgs.stdenv.cc.targetPrefix} \
+          CC=${pkgs.pkgsBuildHost.stdenv.cc}/bin/${pkgs.pkgsBuildHost.stdenv.cc.targetPrefix}cc \
+          KLIB=${self.kernel.dev}/lib/modules/${self.kernel.modDirVersion} \
+          SHELL=$SHELL \
+          oldconfig V=1
+        '';
+        SHELL=pkgs.buildPackages.stdenv.shell;
+        makeFlags = [
+          "ARCH=${pkgs.stdenv.hostPlatform.linuxArch}"
+          "CROSS_COMPILE=${pkgs.stdenv.cc.targetPrefix}"
+          "CC=${pkgs.stdenv.cc}/bin/${pkgs.stdenv.cc.targetPrefix}cc"
+          "HOSTCC=${pkgs.buildPackages.stdenv.cc}/bin/${pkgs.buildPackages.stdenv.cc.targetPrefix}cc"
+          "KLIB=${self.kernel.dev}/lib/modules/${self.kernel.modDirVersion}"
+        ];
+      };
+
+      mt76 =
+        let
+          modDestDir = "$out/lib/modules/${self.kernel.modDirVersion}/kernel/drivers/net/wireless/mediatek/mt76";
+
+          KSRC = "${self.kernel.dev}/lib/modules/${self.kernel.modDirVersion}/build";
+        in
+        pkgs.stdenv.mkDerivation {
+          pname = "mt76";
+          version = "git+${sources.mt76.revision}";
+          src = sources.mt76;
+          makeFlags = [
+            "-C ${KSRC}"
+            "TMP=$(pwd)"
+            "CONFIG_MT7915E=m"
+            "V=1"
+            "CC=${pkgs.stdenv.cc}/bin/${pkgs.stdenv.cc.targetPrefix}cc"
+            "HOSTCC=${pkgs.buildPackages.stdenv.cc}/bin/${pkgs.buildPackages.stdenv.cc.targetPrefix}cc"
+            "ARCH=${pkgs.stdenv.hostPlatform.linuxArch}"
+            "CROSS_COMPILE=${pkgs.stdenv.cc.targetPrefix}"
+            "modules"
+          ];
+          preBuild = ''
+            makeFlagsArray+=("M=$PWD")
+          '';
+          installPhase = ''
+            runHook preInstall
+            mkdir -p ${modDestDir}
+            find . -name '*.ko' -exec cp --parents {} ${modDestDir} \;
+            find ${modDestDir} -name '*.ko' -exec xz -f {} \;
+            runHook postInstall
+          '';
+        };
 
       dtb = pkgs.runCommandCC "uaclite.dtb" { nativeBuildInputs = [ pkgs.pkgsBuildHost.dtc ]; } ''
         unpackFile ${self.kernel.src}
@@ -711,6 +805,8 @@ let
         uboot-mtd
         netconf
         fit
+        mt76
+        mac80211
         ;
       inherit pkgs;
     };
