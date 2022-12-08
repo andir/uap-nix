@@ -8,9 +8,9 @@
         "repo": "mt76"
       },
       "branch": "master",
-      "revision": "64c74dc93f68566cd2c199d2951482ee55ca8b9a",
-      "url": "https://github.com/openwrt/mt76/archive/64c74dc93f68566cd2c199d2951482ee55ca8b9a.tar.gz",
-      "hash": "0avk06n6wj5s7f749a4ggqf0ckiv8vnrpk9xmsjiln04asl92r1y"
+      "revision": "daae6ca5d81fceed2dbbfcfca49be3f0727386e3",
+      "url": "https://github.com/openwrt/mt76/archive/daae6ca5d81fceed2dbbfcfca49be3f0727386e3.tar.gz",
+      "hash": "0fg28y59vaggbk0xk85nymprd791qcwf9fd5kagg2yxpinf0xhdb"
     },
     "nixpkgs": {
       "type": "Git",
@@ -20,9 +20,9 @@
         "repo": "nixpkgs"
       },
       "branch": "nixpkgs-unstable",
-      "revision": "9222ae36b208d1c6b55d88e10aa68f969b5b5244",
-      "url": "https://github.com/nixos/nixpkgs/archive/9222ae36b208d1c6b55d88e10aa68f969b5b5244.tar.gz",
-      "hash": "0dvl990alr4bb64w9b32dhzacvchpsspj8p3zqcgk7q5akvqh1mw"
+      "revision": "52665b05cfd702e12b877aa519b62374d003231a",
+      "url": "https://github.com/nixos/nixpkgs/archive/52665b05cfd702e12b877aa519b62374d003231a.tar.gz",
+      "hash": "0ddqv0mhh5fs0mhd2q1jvi0wcr27w2d59j1s0xli67wvlfq9pra0"
     },
     "npins": {
       "type": "Git",
@@ -32,10 +32,10 @@
         "repo": "npins"
       },
       "branch": "master",
-      "revision": "5a75f6176e987bf1a07c7dc6989e6068361d0b8a",
-      "url": "https://github.com/andir/npins/archive/5a75f6176e987bf1a07c7dc6989e6068361d0b8a.tar.gz",
-      "hash": "1n68ynqbwpd3mkcsvl5x4zyr10xikai16z9zwvma48lrmx39gv3b"
+      "revision": "dd27bfb4fa8ae2c909b32686fe720104a207d39d",
+      "url": "https://github.com/andir/npins/archive/dd27bfb4fa8ae2c909b32686fe720104a207d39d.tar.gz",
+      "hash": "0l7wfqs0axryi75gsir3jv668fxlz9wnkrjwdcplls918xdmbzb5"
     }
   },
-  "version": 1
+  "version": 3
 }

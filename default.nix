@@ -6,76 +6,6 @@ in
 }:
 let
   crossSystems = {
-    ath79 = {
-      crossSystem = {
-        libc = "musl";
-        config = "mips-unknown-linux-musl";
-        openssl.system = "linux-generic32";
-        withTLS = true;
-
-        name = "ath79"; # idk
-        linux-kernel = {
-          name = "ath79";
-          target = "uImage";
-          installTarget = "uImage";
-          autoModules = false;
-          baseConfig = "ath79_defconfig";
-        };
-      };
-      openwrtPatchDirectories = [
-        "target/linux/generic/backport-5.10"
-        "target/linux/generic/pending-5.10"
-        "target/linux/ath79/patches-5.10"
-      ];
-      openwrtPatchFiles = [
-        "target/linux/generic/files/"
-        "target/linux/ath79/files/"
-      ];
-      structuredKernelExtraConfig = pkgs: with pkgs.lib.kernel; {
-        MAGIC_SYSRQ = yes;
-        MIPS_RAW_APPENDED_DTB = yes;
-        DEVTMPFS = yes;
-        TMPFS = yes;
-
-        # Debugging
-        IKCONFIG = yes;
-        IKCONFIG_PROC = yes;
-
-        SPI_AR934X = yes;
-
-        # Ethernet
-        AG71XX = yes;
-        #GENERIC_PHY = yes;
-        #GENERIC_PINCONF = yes;
-        PINCTRL_SINGLE = yes;
-        AT803X_PHY = yes;
-        REGULATOR = yes;
-
-        #MDIO_GPIO = yes;
-        #MDIO_I2C = yes;
-        MFD_SYSCON = yes;
-
-        # WiFi
-        PCI = yes;
-        PCI_AR724X = yes;
-        CFG80211 = yes;
-        MAC80211 = yes;
-        ATH_COMMON = yes;
-        ATH10K = yes;
-        ATH10K_PCI = yes;
-        ATH10K_DEBUG = yes;
-
-        # Other
-        IPV6 = yes;
-
-        # minimalisation
-        ATH9K = no;
-        RTW88 = no;
-        MODULES = yes;
-      };
-
-    };
-
     mt7621 = {
       crossSystem = {
         libc = "musl";
@@ -105,12 +35,12 @@ let
         #"package/kernel/mac80211/patches/mwl"
         #"package/kernel/mac80211/patches/rt2x00"
         #"package/kernel/mac80211/patches/subsys"
-        "target/linux/generic/backport-5.10"
-        "target/linux/generic/pending-5.10"
-        "target/linux/ramips/patches-5.10"
+        #"target/linux/generic/backport-5.10"
+        #"target/linux/generic/pending-5.10"
+        #"target/linux/ramips/patches-5.10"
       ];
       ignoredPatches = [
-        "841-USB-serial-option-add-ZTE-MF286D-modem.patch" # contained in 5.10.101
+       # "841-USB-serial-option-add-ZTE-MF286D-modem.patch" # contained in 5.10.101
       ];
       openwrtPatchFiles = [
         "target/linux/generic/files/"
@@ -151,7 +81,7 @@ let
         BOARD_SCACHE = yes;
         BOUNCE = yes;
         CEVT_R4K = yes;
-        CLKDEV_LOOKUP = yes;
+        HAVE_CLK = yes;
         CLKSRC_MIPS_GIC = yes;
         CLOCKSOURCE_WATCHDOG = yes;
         CLONE_BACKWARDS = yes;
@@ -197,7 +127,7 @@ let
         DMA_NONCOHERENT = yes;
         # DTB_GNUBEE1 is not set
         # DTB_GNUBEE2 is not set
-        DTB_RT_NONE = yes;
+        #DTB_RT_NONE = yes;
         DTC = yes;
         EARLY_PRINTK = yes;
         FIXED_PHY = yes;
@@ -233,7 +163,7 @@ let
         GPIO_WATCHDOG = yes;
         # GPIO_WATCHDOG_ARCH_INITCALL is not set
         GRO_CELLS = yes;
-        HANDLE_DOMAIN_IRQ = yes;
+        #HANDLE_DOMAIN_IRQ = yes;
         HARDWARE_WATCHPOINTS = yes;
         HAS_DMA = yes;
         HAS_IOMEM = yes;
@@ -300,24 +230,24 @@ let
         MTD_NAND_CORE = yes;
         MTD_NAND_ECC = yes;
         MTD_NAND_ECC_SW_HAMMING = yes;
-        MTD_NAND_MT7621 = yes;
+        #MTD_NAND_MT7621 = yes;
         #MTD_NAND_MTK_BMT = yes;
         MTD_PHYSMAP = yes;
         MTD_RAW_NAND = yes;
-        MTD_ROUTERBOOT_PARTS = yes;
+        #MTD_ROUTERBOOT_PARTS = yes;
         MTD_SPI_NOR = yes;
         #MTD_SPI_NOR_USE_VARIABLE_ERASE = yes;
-        MTD_SPLIT_FIT_FW = yes;
-        MTD_SPLIT_MINOR_FW = yes;
-        MTD_SPLIT_SEAMA_FW = yes;
-        MTD_SPLIT_TPLINK_FW = yes;
-        MTD_SPLIT_TRX_FW = yes;
-        MTD_SPLIT_UIMAGE_FW = yes;
+        # MTD_SPLIT_FIT_FW = yes;
+        # MTD_SPLIT_MINOR_FW = yes;
+        # MTD_SPLIT_SEAMA_FW = yes;
+        # MTD_SPLIT_TPLINK_FW = yes;
+        # MTD_SPLIT_TRX_FW = yes;
+        # MTD_SPLIT_UIMAGE_FW = yes;
         MTD_UBI = yes;
         #MTD_UBI_BEB_LIMIT=20;
         MTD_UBI_BLOCK = yes;
         #MTD_UBI_WL_THRESHOLD=4096;
-        MTD_VIRT_CONCAT = yes;
+        #MTD_VIRT_CONCAT = yes;
         # MTK_HSDMA is not set
         NEED_DMA_MAP_STATE = yes;
         NET_DEVLINK = yes;
@@ -341,23 +271,24 @@ let
         OF_IRQ = yes;
         OF_KOBJ = yes;
         OF_MDIO = yes;
-        OF_NET = yes;
+        #OF_NET = yes; # included in OF
         #PADATA = yes;
         PCI = yes;
-        PCI_DISABLE_COMMON_QUIRKS = yes;
+        #PCI_DISABLE_COMMON_QUIRKS = yes;
         PCI_DOMAINS = yes;
         PCI_DOMAINS_GENERIC = yes;
         PCI_DRIVERS_GENERIC = yes;
-        PCI_MT7621 = yes;
-        PCI_MT7621_PHY = yes;
+        PCIE_MT7621 = yes;
+        PHY_MT7621_PCI = yes;
+        #PCI_MT7621_PHY = yes;
         PERF_USE_VMALLOC = yes;
         PGTABLE_LEVELS = freeform "2";
         PHYLIB = yes;
         PHYLINK = yes;
         # PHY_RALINK_USB is not set
         PINCTRL = yes;
-        PINCTRL_AW9523 = yes;
-        PINCTRL_RT2880 = yes;
+        #PINCTRL_AW9523 = yes;
+        #PINCTRL_RT2880 = yes;
         # PINCTRL_SINGLE is not set
         PINCTRL_SX150X = yes;
         POWER_RESET = yes;
@@ -366,7 +297,7 @@ let
         QUEUED_RWLOCKS = yes;
         QUEUED_SPINLOCKS = yes;
         RALINK = yes;
-        # RALINK_WDT is not set
+        RALINK_WDT = yes;
         RATIONAL = yes;
         REGMAP = yes;
         REGMAP_MMIO = yes;
@@ -391,6 +322,7 @@ let
         SMP_UP = yes;
         SOC_BUS = yes;
         SOC_MT7621 = yes;
+        SOC_RT288X = no;
         SPI = yes;
         SPI_MASTER = yes;
         SPI_MEM = yes;
@@ -404,28 +336,28 @@ let
         SYS_HAS_EARLY_PRINTK = yes;
         SYS_SUPPORTS_32BIT_KERNEL = yes;
         SYS_SUPPORTS_ARBIT_HZ = yes;
-        SYS_SUPPORTS_HIGHMEM = yes;
-        SYS_SUPPORTS_HOTPLUG_CPU = yes;
+        #SYS_SUPPORTS_HIGHMEM = yes;
+        #SYS_SUPPORTS_HOTPLUG_CPU = yes;
         SYS_SUPPORTS_LITTLE_ENDIAN = yes;
         SYS_SUPPORTS_MIPS16 = yes;
-        SYS_SUPPORTS_MIPS_CPS = yes;
-        SYS_SUPPORTS_MULTITHREADING = yes;
-        SYS_SUPPORTS_SCHED_SMT = yes;
-        SYS_SUPPORTS_SMP = yes;
+        #SYS_SUPPORTS_MIPS_CPS = yes;
+        #SYS_SUPPORTS_MULTITHREADING = yes;
+        #SYS_SUPPORTS_SCHED_SMT = yes;
+        #SYS_SUPPORTS_SMP = yes;
         SYS_SUPPORTS_ZBOOT = yes;
         TARGET_ISA_REV = freeform "2";
         TICK_CPU_ACCOUNTING = yes;
         TIMER_OF = yes;
         TIMER_PROBE = yes;
-        TREE_RCU = yes;
-        TREE_SRCU = yes;
+        #TREE_RCU = yes;
+        #TREE_SRCU = yes;
         #UBIFS_FS = yes;
         USB_SUPPORT = yes;
         USE_OF = yes;
         WATCHDOG_CORE = yes;
         WEAK_ORDERING = yes;
         #WEAK_REORDERING_BEYOND_LLSC = yes;
-        XPS = yes;
+        #XPS = yes;
         ZLIB_DEFLATE = yes;
         ZLIB_INFLATE = yes;
       };
@@ -593,9 +525,9 @@ let
 
 
       kernelSrc =
-        pkgs.linux_5_16.src;
+        pkgs.linux_latest.src;
       #(pkgs.applyPatches {
-      #  inherit (pkgs.linux_5_10) src;
+      #  inherit (pkgs.linux_latest) src;
       #  patches = map (dir: lib.filesInDir (targetSystem.ignoredPatches or [ ]) "${self.openwrt-src}/${dir}")
       #    (targetSystem.openwrtPatchDirectories or [ ])
       #  ++ [ ./0001-enable-debugging-for-of-fdt.c.patch ]
@@ -609,7 +541,7 @@ let
       #});
 
       kernel = (pkgs.buildLinux {
-        inherit (pkgs.linux_5_10) version;
+        inherit (pkgs.linux_latest) version;
         src = self.kernelSrc;
         useCommonConfig = false;
         autoModules = false;
@@ -630,41 +562,41 @@ let
         #'';
       });
 
-      mac80211 = pkgs.stdenv.mkDerivation {
-        pname = "mac80211";
-        version = "5.15.8-1";
-        src = pkgs.pkgsBuildHost.fetchurl {
-          url = "https://mirrors.edge.kernel.org/pub/linux/kernel/projects/backports/stable/v5.15.8/backports-5.15.8-1.tar.xz";
-          sha256 = "08383fgkxp8qxzwf4hnc9hyfwv30rc7piv1jclarvw9lq1cvcwcz";
-        };
-        nativeBuildInputs = [
-          pkgs.pkgsBuildHost.flex
-          pkgs.pkgsBuildHost.bison
-          pkgs.pkgsBuildHost.perl
-          pkgs.pkgsBuildHost.gmp
-        ];
-        preBuild = ''
-          patchShebangs scripts
-          echo "CPTCFG_CFG80211=m" >> .config
-          echo "CPTCFG_MAC80211=m" >> .config
-          make \
-          LEX=flex \
-          ARCH=${pkgs.stdenv.hostPlatform.linuxArch} \
-          CROSS_COMPILE=${pkgs.stdenv.cc.targetPrefix} \
-          CC=${pkgs.pkgsBuildHost.stdenv.cc}/bin/${pkgs.pkgsBuildHost.stdenv.cc.targetPrefix}cc \
-          KLIB=${self.kernel.dev}/lib/modules/${self.kernel.modDirVersion} \
-          SHELL=$SHELL \
-          oldconfig V=1
-        '';
-        SHELL=pkgs.buildPackages.stdenv.shell;
-        makeFlags = [
-          "ARCH=${pkgs.stdenv.hostPlatform.linuxArch}"
-          "CROSS_COMPILE=${pkgs.stdenv.cc.targetPrefix}"
-          "CC=${pkgs.stdenv.cc}/bin/${pkgs.stdenv.cc.targetPrefix}cc"
-          "HOSTCC=${pkgs.buildPackages.stdenv.cc}/bin/${pkgs.buildPackages.stdenv.cc.targetPrefix}cc"
-          "KLIB=${self.kernel.dev}/lib/modules/${self.kernel.modDirVersion}"
-        ];
-      };
+      #mac80211 = pkgs.stdenv.mkDerivation {
+      #  pname = "mac80211";
+      #  version = "5.15.8-1";
+      #  src = pkgs.pkgsBuildHost.fetchurl {
+      #    url = "https://mirrors.edge.kernel.org/pub/linux/kernel/projects/backports/stable/v5.15.8/backports-5.15.8-1.tar.xz";
+      #    sha256 = "08383fgkxp8qxzwf4hnc9hyfwv30rc7piv1jclarvw9lq1cvcwcz";
+      #  };
+      #  nativeBuildInputs = [
+      #    pkgs.pkgsBuildHost.flex
+      #    pkgs.pkgsBuildHost.bison
+      #    pkgs.pkgsBuildHost.perl
+      #    pkgs.pkgsBuildHost.gmp
+      #  ];
+      #  preBuild = ''
+      #    patchShebangs scripts
+      #    echo "CPTCFG_CFG80211=m" >> .config
+      #    echo "CPTCFG_MAC80211=m" >> .config
+      #    make \
+      #    LEX=flex \
+      #    ARCH=${pkgs.stdenv.hostPlatform.linuxArch} \
+      #    CROSS_COMPILE=${pkgs.stdenv.cc.targetPrefix} \
+      #    CC=${pkgs.pkgsBuildHost.stdenv.cc}/bin/${pkgs.pkgsBuildHost.stdenv.cc.targetPrefix}cc \
+      #    KLIB=${self.kernel.dev}/lib/modules/${self.kernel.modDirVersion} \
+      #    SHELL=$SHELL \
+      #    oldconfig V=1
+      #  '';
+      #  SHELL=pkgs.buildPackages.stdenv.shell;
+      #  makeFlags = [
+      #    "ARCH=${pkgs.stdenv.hostPlatform.linuxArch}"
+      #    "CROSS_COMPILE=${pkgs.stdenv.cc.targetPrefix}"
+      #    "CC=${pkgs.stdenv.cc}/bin/${pkgs.stdenv.cc.targetPrefix}cc"
+      #    "HOSTCC=${pkgs.buildPackages.stdenv.cc}/bin/${pkgs.buildPackages.stdenv.cc.targetPrefix}cc"
+      #    "KLIB=${self.kernel.dev}/lib/modules/${self.kernel.modDirVersion}"
+      #  ];
+      #};
 
       mt76 =
         let
@@ -806,7 +738,7 @@ let
         netconf
         fit
         mt76
-        mac80211
+        #mac80211
         ;
       inherit pkgs;
     };
