@@ -70,6 +70,7 @@ let
         RD_GZIP = yes;
 
 
+        ARCH_KEEP_MEMBLOCK = yes;
         ARCH_32BIT_OFF_T = yes;
         ARCH_HIBERNATION_POSSIBLE = yes;
         ARCH_MMAP_RND_BITS_MAX = freeform "15";
@@ -82,6 +83,7 @@ let
         BOUNCE = yes;
         CEVT_R4K = yes;
         HAVE_CLK = yes;
+        HAVE_MEMBLOCK = yes;
         CLKSRC_MIPS_GIC = yes;
         CLOCKSOURCE_WATCHDOG = yes;
         CLONE_BACKWARDS = yes;
@@ -155,10 +157,10 @@ let
         GENERIC_SCHED_CLOCK = yes;
         GENERIC_SMP_IDLE_THREAD = yes;
         GENERIC_TIME_VSYSCALL = yes;
-        #GLOB = yes;
-        #GPIOLIB = yes;
-        #GPIOLIB_IRQCHIP = yes;
-        #GPIO_GENERIC = yes;
+        GLOB = yes;
+        GPIOLIB = yes;
+        GPIOLIB_IRQCHIP = yes;
+        GPIO_GENERIC = yes;
         GPIO_MT7621 = yes;
         # GPIO_RALINK is not set
         WATCHDOG = yes;
@@ -167,9 +169,9 @@ let
         GRO_CELLS = yes;
         #HANDLE_DOMAIN_IRQ = yes;
         #HARDWARE_WATCHPOINTS = yes;
-        #HAS_DMA = yes;
-        #HAS_IOMEM = yes;
-        #HAS_IOPORT_MAP = yes;
+        HAS_DMA = yes;
+        HAS_IOMEM = yes;
+        HAS_IOPORT_MAP = yes;
         HIGHMEM = yes;
         I2C = yes;
         I2C_BOARDINFO = yes;
@@ -222,9 +224,9 @@ let
         MIPS_MT_SMP = yes;
         # MIPS_NO_APPENDED_DTB is not set
         #MIPS_NR_CPU_NR_MAP=4;
-        #MIPS_PERF_SHARED_TC_COUNTERS = yes;
-        #MIPS_RAW_APPENDED_DTB = yes;
-        #MIPS_SPRAM = yes;
+        MIPS_PERF_SHARED_TC_COUNTERS = yes;
+        MIPS_RAW_APPENDED_DTB = yes;
+        MIPS_SPRAM = yes;
         #MODULES_USE_ELF_REL = yes;
         MT7621_WDT = yes;
         # MTD_CFI_INTELEXT is not set
@@ -347,20 +349,20 @@ let
         SYS_SUPPORTS_MULTITHREADING = yes;
         SYS_SUPPORTS_SCHED_SMT = yes;
         SYS_SUPPORTS_SMP = yes;
-        #SYS_SUPPORTS_ZBOOT = yes;
+        SYS_SUPPORTS_ZBOOT = yes;
         TARGET_ISA_REV = freeform "2";
-        #TICK_CPU_ACCOUNTING = yes;
+        TICK_CPU_ACCOUNTING = yes;
         TIMER_OF = yes;
         TIMER_PROBE = yes;
-        #TREE_RCU = yes;
-        #TREE_SRCU = yes;
+        TREE_RCU = yes;
+        TREE_SRCU = yes;
         #UBIFS_FS = yes;
         USB_SUPPORT = yes;
         USE_OF = yes;
         WATCHDOG_CORE = yes;
         WEAK_ORDERING = yes;
         #WEAK_REORDERING_BEYOND_LLSC = yes;
-        #XPS = yes;
+        XPS = yes;
         ZLIB_DEFLATE = yes;
         ZLIB_INFLATE = yes;
       };
