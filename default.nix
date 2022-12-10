@@ -451,14 +451,14 @@ let
             name = "uap-nix-bin";
             paths = [
               pkgs.busybox
-              pkgs.hostapd
-              pkgs.dropbear
-              pkgs.iputils
-              pkgs.tcpdump
-              (lib.hiPrio (pkgs.writeScriptBin "reboot" ''
-                #!/bin/sh
-                echo b > /proc/sysrq-trigger
-              ''))
+              #pkgs.hostapd
+              #pkgs.dropbear
+              #pkgs.iputils
+              #pkgs.tcpdump
+              #(lib.hiPrio (pkgs.writeScriptBin "reboot" ''
+              #  #!/bin/sh
+              #  echo b > /proc/sysrq-trigger
+              #''))
             ];
             pathsToLink = [ "/bin" ];
           }) + "/bin";
@@ -479,14 +479,14 @@ let
             '';
             symlink = "/init";
           }
-          {
-            object = pkgs.runCommandNoCC "firmware-ath10k" { } ''
-              mkdir -p $out/mediatek
-              cp -r ${pkgs.firmwareLinuxNonfree}/lib/firmware/mediatek/mt7915_{rom_patch,wa,wm}.bin $out/mediatek/
-              cp -r ${pkgs.wireless-regdb}/lib/firmware/regulatory.db $out/
-            '';
-            symlink = "/lib/firmware";
-          }
+          #{
+          #  object = pkgs.runCommandNoCC "firmware-ath10k" { } ''
+          #    mkdir -p $out/mediatek
+          #    cp -r ${pkgs.firmwareLinuxNonfree}/lib/firmware/mediatek/mt7915_{rom_patch,wa,wm}.bin $out/mediatek/
+          #    cp -r ${pkgs.wireless-regdb}/lib/firmware/regulatory.db $out/
+          #  '';
+          #  symlink = "/lib/firmware";
+          #}
           {
             object = pkgs.writeText "hostapd.conf" ''
               interface=wlan0
