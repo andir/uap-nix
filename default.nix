@@ -317,7 +317,7 @@ let
         #RTC_DRV_PCF8563 = yes;
         #RTC_I2C_AND_SPI = yes;
         #RTC_MC146818_LIB = yes;
-        #SCHED_SMT = yes;
+        SCHED_SMT = yes;
         SERIAL_8250_NR_UARTS = freeform "3";
         SERIAL_8250_RUNTIME_UARTS = freeform "3";
         SERIAL_MCTRL_GPIO = yes;
