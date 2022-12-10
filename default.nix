@@ -76,8 +76,8 @@ let
         ARCH_MMAP_RND_COMPAT_BITS_MAX = freeform "15";
         ARCH_NEEDS_CPU_IDLE_COUPLED = yes;
         ARCH_SUSPEND_POSSIBLE = yes;
-        #AT803X_PHY = yes;
-        #BLK_MQ_PCI = yes;
+        AT803X_PHY = yes;
+        BLK_MQ_PCI = yes;
         BOARD_SCACHE = yes;
         #BOUNCE = yes;
         #CEVT_R4K = yes;
