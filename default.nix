@@ -107,7 +107,7 @@ let
         CPU_MIPSR2_IRQ_EI = yes;
         CPU_MIPSR2_IRQ_VI = yes;
         CPU_NEEDS_NO_SMARTMIPS_OR_MICROMIPS = yes;
-        #CPU_PM = yes;
+        CPU_PM = yes;
         CPU_R4K_CACHE_TLB = yes;
         CPU_RMAP = yes;
         CPU_SUPPORTS_32BIT_KERNEL = yes;
