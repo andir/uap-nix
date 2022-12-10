@@ -189,8 +189,8 @@ let
         LED_TRIGGER_PHY = yes;
         LIBFDT = yes;
         LOCK_DEBUGGING_SUPPORT = yes;
-        #LZO_COMPRESS = yes;
-        #LZO_DECOMPRESS = yes;
+        LZO_COMPRESS = yes;
+        LZO_DECOMPRESS = yes;
         MDIO_BUS = yes;
         MDIO_DEVICE = yes;
         MEDIATEK_GE_PHY = yes;
@@ -209,7 +209,7 @@ let
         MIPS_CMDLINE_FROM_DTB = yes;
         MIPS_CPC = yes;
         MIPS_CPS = yes;
-        #MIPS_CPS_CPUIDLE = yes;
+        MIPS_CPS_CPUIDLE = yes;
         # MIPS_CPS_NS16550_BOOL is not set
         MIPS_CPS_PM = yes;
         MIPS_CPU_SCACHE = yes;
