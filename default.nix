@@ -79,12 +79,12 @@ let
         AT803X_PHY = yes;
         BLK_MQ_PCI = yes;
         BOARD_SCACHE = yes;
-        #BOUNCE = yes;
-        #CEVT_R4K = yes;
-        #HAVE_CLK = yes;
-        #CLKSRC_MIPS_GIC = yes;
-        #CLOCKSOURCE_WATCHDOG = yes;
-        #CLONE_BACKWARDS = yes;
+        BOUNCE = yes;
+        CEVT_R4K = yes;
+        HAVE_CLK = yes;
+        CLKSRC_MIPS_GIC = yes;
+        CLOCKSOURCE_WATCHDOG = yes;
+        CLONE_BACKWARDS = yes;
         #CMDLINE="rootfstype=squashfs,jffs2";
         CMDLINE = freeform "earlycon=uart8250,mmio32,0x1e000c00 earlyprintk debug";
         CMDLINE_BOOL = yes;
