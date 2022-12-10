@@ -71,11 +71,11 @@ let
 
 
         ARCH_32BIT_OFF_T = yes;
-        #ARCH_HIBERNATION_POSSIBLE = yes;
-        #ARCH_MMAP_RND_BITS_MAX = freeform "15";
-        #ARCH_MMAP_RND_COMPAT_BITS_MAX = freeform "15";
-        #ARCH_NEEDS_CPU_IDLE_COUPLED = yes;
-        #ARCH_SUSPEND_POSSIBLE = yes;
+        ARCH_HIBERNATION_POSSIBLE = yes;
+        ARCH_MMAP_RND_BITS_MAX = freeform "15";
+        ARCH_MMAP_RND_COMPAT_BITS_MAX = freeform "15";
+        ARCH_NEEDS_CPU_IDLE_COUPLED = yes;
+        ARCH_SUSPEND_POSSIBLE = yes;
         #AT803X_PHY = yes;
         #BLK_MQ_PCI = yes;
         #BOARD_SCACHE = yes;
@@ -361,8 +361,8 @@ let
         WEAK_ORDERING = yes;
         #WEAK_REORDERING_BEYOND_LLSC = yes;
         #XPS = yes;
-        #ZLIB_DEFLATE = yes;
-        #ZLIB_INFLATE = yes;
+        ZLIB_DEFLATE = yes;
+        ZLIB_INFLATE = yes;
       };
     };
   };
