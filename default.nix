@@ -439,11 +439,6 @@ let
       }).overrideAttrs ({ nativeBuildInputs, ... }: {
         patches = [ ./0001-arch-mips-Update-initrd_start-and-initrd_end.patch ];
         nativeBuildInputs = nativeBuildInputs ++ [ pkgs.pkgsBuildHost.python2 ];
-        #postConfigure = ''
-        #  set -x
-        #  grep TRACE .config
-        #  set +x
-        #'';
       });
 
       initramfs = pkgs.makeInitrd {
@@ -458,14 +453,6 @@ let
               pkgs.dropbear
               pkgs.iputils
               pkgs.tcpdump
-              #(pkgs.writeScriptBin "debug-wifi" ''
-              #  #!/bin/sh
-              #  echo 0xffffffff > /sys/module/ath10k_core/parameters/debug_mask
-              #  echo 8 > /proc/sys/kernel/printk
-              #  cd /sys/bus/pci/drivers/ath10k_pci
-              #  echo 0000:00:00.0 > unbind
-              #  echo 0000:00:00.0 > bind
-              #'')
               (lib.hiPrio (pkgs.writeScriptBin "reboot" ''
                 #!/bin/sh
                 echo b > /proc/sysrq-trigger
@@ -527,19 +514,6 @@ let
 
       kernelSrc =
         pkgs.linux_latest.src;
-      #(pkgs.applyPatches {
-      #  inherit (pkgs.linux_latest) src;
-      #  patches = map (dir: lib.filesInDir (targetSystem.ignoredPatches or [ ]) "${self.openwrt-src}/${dir}")
-      #    (targetSystem.openwrtPatchDirectories or [ ])
-      #  ++ [ ./0001-enable-debugging-for-of-fdt.c.patch ]
-      #  ;
-      #}).overrideAttrs (o: {
-      #  prePatch = ''
-      #    (
-      #    ${lib.concatMapStringsSep "\n" (dir: "${pkgs.pkgsBuildHost.rsync}/bin/rsync -rt ${self.openwrt-src}/${dir} ./") (targetSystem.openwrtPatchFiles or [])}
-      #    )
-      #  '';
-      #});
 
       kernel = (pkgs.buildLinux {
         inherit (pkgs.linux_latest) version;
@@ -550,91 +524,12 @@ let
         kernelPatches = [ ];
         structuredExtraConfig = pkgs.lib.mkForce ((targetSystem.structuredKernelExtraConfig or (_: { })) pkgs);
       }).overrideAttrs (o: rec {
-        #installPhase = ''
-        #  mkdir -p $out
-        #  cp -v arch/mips/boot/uImage $out/
-        #  cp -v arch/mips/boot/vmlinu[xz]* $out/
-        #  cp -v vmlinux $out/
-        #'';
         postInstall = ''
           cp arch/mips/boot/vmlinux.bin $out
           cp arch/mips/boot/vmlinux.bin.gz $out
           cp arch/mips/boot/uImage $out
         '' + (lib.replaceStrings ["find . -type f -perm -u=w -print0 | xargs -0 -r rm"] [""] o.postInstall);
-        #  ${o.postInstall}
-        #  chmod -R +rw $dev
-        #  #cp -rv ${self.kernelSrc}/arch/mips/* $dev/lib/modules/${self.kernel.modDirVersion}/source/arch/mips/.
-        #'';
       });
-
-      #mac80211 = pkgs.stdenv.mkDerivation {
-      #  pname = "mac80211";
-      #  version = "5.15.8-1";
-      #  src = pkgs.pkgsBuildHost.fetchurl {
-      #    url = "https://mirrors.edge.kernel.org/pub/linux/kernel/projects/backports/stable/v5.15.8/backports-5.15.8-1.tar.xz";
-      #    sha256 = "08383fgkxp8qxzwf4hnc9hyfwv30rc7piv1jclarvw9lq1cvcwcz";
-      #  };
-      #  nativeBuildInputs = [
-      #    pkgs.pkgsBuildHost.flex
-      #    pkgs.pkgsBuildHost.bison
-      #    pkgs.pkgsBuildHost.perl
-      #    pkgs.pkgsBuildHost.gmp
-      #  ];
-      #  preBuild = ''
-      #    patchShebangs scripts
-      #    echo "CPTCFG_CFG80211=m" >> .config
-      #    echo "CPTCFG_MAC80211=m" >> .config
-      #    make \
-      #    LEX=flex \
-      #    ARCH=${pkgs.stdenv.hostPlatform.linuxArch} \
-      #    CROSS_COMPILE=${pkgs.stdenv.cc.targetPrefix} \
-      #    CC=${pkgs.pkgsBuildHost.stdenv.cc}/bin/${pkgs.pkgsBuildHost.stdenv.cc.targetPrefix}cc \
-      #    KLIB=${self.kernel.dev}/lib/modules/${self.kernel.modDirVersion} \
-      #    SHELL=$SHELL \
-      #    oldconfig V=1
-      #  '';
-      #  SHELL=pkgs.buildPackages.stdenv.shell;
-      #  makeFlags = [
-      #    "ARCH=${pkgs.stdenv.hostPlatform.linuxArch}"
-      #    "CROSS_COMPILE=${pkgs.stdenv.cc.targetPrefix}"
-      #    "CC=${pkgs.stdenv.cc}/bin/${pkgs.stdenv.cc.targetPrefix}cc"
-      #    "HOSTCC=${pkgs.buildPackages.stdenv.cc}/bin/${pkgs.buildPackages.stdenv.cc.targetPrefix}cc"
-      #    "KLIB=${self.kernel.dev}/lib/modules/${self.kernel.modDirVersion}"
-      #  ];
-      #};
-
-      mt76 =
-        let
-          modDestDir = "$out/lib/modules/${self.kernel.modDirVersion}/kernel/drivers/net/wireless/mediatek/mt76";
-
-          KSRC = "${self.kernel.dev}/lib/modules/${self.kernel.modDirVersion}/build";
-        in
-        pkgs.stdenv.mkDerivation {
-          pname = "mt76";
-          version = "git+${sources.mt76.revision}";
-          src = sources.mt76;
-          makeFlags = [
-            "-C ${KSRC}"
-            "TMP=$(pwd)"
-            "CONFIG_MT7915E=m"
-            "V=1"
-            "CC=${pkgs.stdenv.cc}/bin/${pkgs.stdenv.cc.targetPrefix}cc"
-            "HOSTCC=${pkgs.buildPackages.stdenv.cc}/bin/${pkgs.buildPackages.stdenv.cc.targetPrefix}cc"
-            "ARCH=${pkgs.stdenv.hostPlatform.linuxArch}"
-            "CROSS_COMPILE=${pkgs.stdenv.cc.targetPrefix}"
-            "modules"
-          ];
-          preBuild = ''
-            makeFlagsArray+=("M=$PWD")
-          '';
-          installPhase = ''
-            runHook preInstall
-            mkdir -p ${modDestDir}
-            find . -name '*.ko' -exec cp --parents {} ${modDestDir} \;
-            find ${modDestDir} -name '*.ko' -exec xz -f {} \;
-            runHook postInstall
-          '';
-        };
 
       dtb = pkgs.runCommandCC "uaclite.dtb" { nativeBuildInputs = [ pkgs.pkgsBuildHost.dtc ]; } ''
         unpackFile ${self.kernel.src}
@@ -742,8 +637,6 @@ let
         uboot-mtd
         netconf
         fit
-        mt76
-        #mac80211
         ;
       inherit pkgs;
     };
