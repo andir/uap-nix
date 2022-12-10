@@ -1,6 +1,9 @@
 let
   sources = import ./npins;
-  pkgs = import sources.nixpkgs { };
+in
+{ nixpkgs ? sources.nixpkgs }:
+let
+  pkgs = import nixpkgs { };
 
   off = ''
     ${pkgs.mosquitto}/bin/mosquitto_pub -h 10.250.43.1 -t 'zigbee2mqtt/0xcc86ecfffe8bf9a7/set' -m '{"state": "OFF"}'
@@ -31,5 +34,9 @@ in pkgs.mkShell {
     (pkgs.callPackage sources.npins { })
     powercycle
     retry
+    pkgs.cargo
+    pkgs.rustc
+    pkgs.rust-analyzer
+    pkgs.rustfmt
   ];
 }

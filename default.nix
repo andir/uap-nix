@@ -71,92 +71,92 @@ let
 
 
         ARCH_32BIT_OFF_T = yes;
-        ARCH_HIBERNATION_POSSIBLE = yes;
-        ARCH_MMAP_RND_BITS_MAX = freeform "15";
-        ARCH_MMAP_RND_COMPAT_BITS_MAX = freeform "15";
-        ARCH_NEEDS_CPU_IDLE_COUPLED = yes;
-        ARCH_SUSPEND_POSSIBLE = yes;
-        AT803X_PHY = yes;
-        BLK_MQ_PCI = yes;
-        BOARD_SCACHE = yes;
-        BOUNCE = yes;
-        CEVT_R4K = yes;
-        HAVE_CLK = yes;
-        CLKSRC_MIPS_GIC = yes;
-        CLOCKSOURCE_WATCHDOG = yes;
-        CLONE_BACKWARDS = yes;
+        #ARCH_HIBERNATION_POSSIBLE = yes;
+        #ARCH_MMAP_RND_BITS_MAX = freeform "15";
+        #ARCH_MMAP_RND_COMPAT_BITS_MAX = freeform "15";
+        #ARCH_NEEDS_CPU_IDLE_COUPLED = yes;
+        #ARCH_SUSPEND_POSSIBLE = yes;
+        #AT803X_PHY = yes;
+        #BLK_MQ_PCI = yes;
+        #BOARD_SCACHE = yes;
+        #BOUNCE = yes;
+        #CEVT_R4K = yes;
+        #HAVE_CLK = yes;
+        #CLKSRC_MIPS_GIC = yes;
+        #CLOCKSOURCE_WATCHDOG = yes;
+        #CLONE_BACKWARDS = yes;
         #CMDLINE="rootfstype=squashfs,jffs2";
         CMDLINE = freeform "earlycon=uart8250,mmio32,0x1e000c00 earlyprintk debug";
         CMDLINE_BOOL = yes;
         # CMDLINE_OVERRIDE is not set
-        COMMON_CLK = yes;
+        #COMMON_CLK = yes;
         # COMMON_CLK_BOSTON is not set
-        COMPAT_32BIT_TIME = yes;
-        CPU_GENERIC_DUMP_TLB = yes;
-        CPU_HAS_DIEI = yes;
-        CPU_HAS_PREFETCH = yes;
-        CPU_HAS_RIXI = yes;
-        CPU_HAS_SYNC = yes;
-        CPU_IDLE = yes;
-        # CPU_IDLE_GOV_LADDER is not set
-        CPU_IDLE_GOV_TEO = yes;
-        CPU_MIPS32 = yes;
-        # CPU_MIPS32_R1 is not set
-        CPU_MIPS32_R2 = yes;
-        CPU_MIPSR2 = yes;
-        CPU_MIPSR2_IRQ_EI = yes;
-        CPU_MIPSR2_IRQ_VI = yes;
-        CPU_NEEDS_NO_SMARTMIPS_OR_MICROMIPS = yes;
-        CPU_PM = yes;
-        CPU_R4K_CACHE_TLB = yes;
-        CPU_RMAP = yes;
-        CPU_SUPPORTS_32BIT_KERNEL = yes;
-        CPU_SUPPORTS_HIGHMEM = yes;
-        CPU_SUPPORTS_MSA = yes;
-        CRC16 = yes;
-        CRYPTO = yes;
-        CRYPTO_ACOMP2 = yes;
-        CRYPTO_DEFLATE = yes;
-        #CRYPTO_HASH_INFO = yes;
-        CRYPTO_LIB_POLY1305_RSIZE = freeform "2";
-        CRYPTO_LZO = yes;
-        CRYPTO_RNG2 = yes;
-        CSRC_R4K = yes;
-        DEBUG_PINCTRL = yes;
-        DIMLIB = yes;
-        DMA_NONCOHERENT = yes;
+        #COMPAT_32BIT_TIME = yes;
+        #CPU_GENERIC_DUMP_TLB = yes;
+        #CPU_HAS_DIEI = yes;
+        #CPU_HAS_PREFETCH = yes;
+        #CPU_HAS_RIXI = yes;
+        #CPU_HAS_SYNC = yes;
+        #CPU_IDLE = yes;
+        ## CPU_IDLE_GOV_LADDER is not set
+        #CPU_IDLE_GOV_TEO = yes;
+        #CPU_MIPS32 = yes;
+        ## CPU_MIPS32_R1 is not set
+        #CPU_MIPS32_R2 = yes;
+        #CPU_MIPSR2 = yes;
+        #CPU_MIPSR2_IRQ_EI = yes;
+        #CPU_MIPSR2_IRQ_VI = yes;
+        #CPU_NEEDS_NO_SMARTMIPS_OR_MICROMIPS = yes;
+        #CPU_PM = yes;
+        #CPU_R4K_CACHE_TLB = yes;
+        #CPU_RMAP = yes;
+        #CPU_SUPPORTS_32BIT_KERNEL = yes;
+        #CPU_SUPPORTS_HIGHMEM = yes;
+        #CPU_SUPPORTS_MSA = yes;
+        #CRC16 = yes;
+        #CRYPTO = yes;
+        #CRYPTO_ACOMP2 = yes;
+        #CRYPTO_DEFLATE = yes;
+        ##CRYPTO_HASH_INFO = yes;
+        #CRYPTO_LIB_POLY1305_RSIZE = freeform "2";
+        #CRYPTO_LZO = yes;
+        #CRYPTO_RNG2 = yes;
+        #CSRC_R4K = yes;
+        #DEBUG_PINCTRL = yes;
+        #DIMLIB = yes;
+        #DMA_NONCOHERENT = yes;
         # DTB_GNUBEE1 is not set
         # DTB_GNUBEE2 is not set
         #DTB_RT_NONE = yes;
-        DTC = yes;
+        #DTC = yes;
         EARLY_PRINTK = yes;
         FIXED_PHY = yes;
         #FW_LOADER_PAGED_BUF = yes;
-        GENERIC_ATOMIC64 = yes;
-        GENERIC_CLOCKEVENTS = yes;
-        GENERIC_CLOCKEVENTS_BROADCAST = yes;
-        GENERIC_CMOS_UPDATE = yes;
-        GENERIC_CPU_AUTOPROBE = yes;
-        GENERIC_GETTIMEOFDAY = yes;
-        GENERIC_IOMAP = yes;
-        GENERIC_IRQ_CHIP = yes;
-        GENERIC_IRQ_EFFECTIVE_AFF_MASK = yes;
-        GENERIC_IRQ_SHOW = yes;
-        GENERIC_LIB_ASHLDI3 = yes;
-        GENERIC_LIB_ASHRDI3 = yes;
-        GENERIC_LIB_CMPDI2 = yes;
-        GENERIC_LIB_LSHRDI3 = yes;
-        GENERIC_LIB_UCMPDI2 = yes;
-        GENERIC_PCI_IOMAP = yes;
-        GENERIC_PHY = yes;
-        GENERIC_PINCONF = yes;
-        GENERIC_SCHED_CLOCK = yes;
-        GENERIC_SMP_IDLE_THREAD = yes;
-        GENERIC_TIME_VSYSCALL = yes;
-        GLOB = yes;
-        GPIOLIB = yes;
-        GPIOLIB_IRQCHIP = yes;
-        GPIO_GENERIC = yes;
+        #GENERIC_ATOMIC64 = yes;
+        #GENERIC_CLOCKEVENTS = yes;
+        #GENERIC_CLOCKEVENTS_BROADCAST = yes;
+        #GENERIC_CMOS_UPDATE = yes;
+        #GENERIC_CPU_AUTOPROBE = yes;
+        #GENERIC_GETTIMEOFDAY = yes;
+        #GENERIC_IOMAP = yes;
+        #GENERIC_IRQ_CHIP = yes;
+        #GENERIC_IRQ_EFFECTIVE_AFF_MASK = yes;
+        #GENERIC_IRQ_SHOW = yes;
+        #GENERIC_LIB_ASHLDI3 = yes;
+        #GENERIC_LIB_ASHRDI3 = yes;
+        #GENERIC_LIB_CMPDI2 = yes;
+        #GENERIC_LIB_LSHRDI3 = yes;
+        #GENERIC_LIB_UCMPDI2 = yes;
+        #GENERIC_PCI_IOMAP = yes;
+        #GENERIC_PHY = yes;
+        #GENERIC_PINCONF = yes;
+        #GENERIC_SCHED_CLOCK = yes;
+        #GENERIC_SMP_IDLE_THREAD = yes;
+        #GENERIC_TIME_VSYSCALL = yes;
+        #GLOB = yes;
+        #GPIOLIB = yes;
+        #GPIOLIB_IRQCHIP = yes;
+        #GPIO_GENERIC = yes;
         GPIO_MT7621 = yes;
         # GPIO_RALINK is not set
         WATCHDOG = yes;
@@ -164,11 +164,11 @@ let
         # GPIO_WATCHDOG_ARCH_INITCALL is not set
         GRO_CELLS = yes;
         #HANDLE_DOMAIN_IRQ = yes;
-        HARDWARE_WATCHPOINTS = yes;
-        HAS_DMA = yes;
-        HAS_IOMEM = yes;
-        HAS_IOPORT_MAP = yes;
-        HIGHMEM = yes;
+        #HARDWARE_WATCHPOINTS = yes;
+        #HAS_DMA = yes;
+        #HAS_IOMEM = yes;
+        #HAS_IOPORT_MAP = yes;
+        #HIGHMEM = yes;
         I2C = yes;
         I2C_BOARDINFO = yes;
         I2C_CHARDEV = yes;
@@ -187,8 +187,8 @@ let
         LED_TRIGGER_PHY = yes;
         LIBFDT = yes;
         LOCK_DEBUGGING_SUPPORT = yes;
-        LZO_COMPRESS = yes;
-        LZO_DECOMPRESS = yes;
+        #LZO_COMPRESS = yes;
+        #LZO_DECOMPRESS = yes;
         MDIO_BUS = yes;
         MDIO_DEVICE = yes;
         MEDIATEK_GE_PHY = yes;
@@ -207,23 +207,23 @@ let
         MIPS_CMDLINE_FROM_DTB = yes;
         MIPS_CPC = yes;
         MIPS_CPS = yes;
-        MIPS_CPS_CPUIDLE = yes;
+        #MIPS_CPS_CPUIDLE = yes;
         # MIPS_CPS_NS16550_BOOL is not set
-        MIPS_CPS_PM = yes;
-        MIPS_CPU_SCACHE = yes;
+        #MIPS_CPS_PM = yes;
+        #MIPS_CPU_SCACHE = yes;
         # MIPS_ELF_APPENDED_DTB is not set
-        MIPS_GIC = yes;
-        MIPS_L1_CACHE_SHIFT = freeform "5";
-        MIPS_LD_CAN_LINK_VDSO = yes;
-        MIPS_MT = yes;
-        MIPS_MT_FPAFF = yes;
-        MIPS_MT_SMP = yes;
+        #MIPS_GIC = yes;
+        #MIPS_L1_CACHE_SHIFT = freeform "5";
+        #MIPS_LD_CAN_LINK_VDSO = yes;
+        #MIPS_MT = yes;
+        #MIPS_MT_FPAFF = yes;
+        #MIPS_MT_SMP = yes;
         # MIPS_NO_APPENDED_DTB is not set
         #MIPS_NR_CPU_NR_MAP=4;
-        MIPS_PERF_SHARED_TC_COUNTERS = yes;
-        MIPS_RAW_APPENDED_DTB = yes;
-        MIPS_SPRAM = yes;
-        MODULES_USE_ELF_REL = yes;
+        #MIPS_PERF_SHARED_TC_COUNTERS = yes;
+        #MIPS_RAW_APPENDED_DTB = yes;
+        #MIPS_SPRAM = yes;
+        #MODULES_USE_ELF_REL = yes;
         MT7621_WDT = yes;
         # MTD_CFI_INTELEXT is not set
         MTD_CMDLINE_PARTS = yes;
@@ -263,6 +263,7 @@ let
         NO_HZ_IDLE = yes;
         #NR_CPUS=4;
         NVMEM = yes;
+        MEMTEST = no;
         OF = yes;
         OF_ADDRESS = yes;
         OF_EARLY_FLATTREE = yes;
@@ -290,29 +291,29 @@ let
         #PINCTRL_AW9523 = yes;
         #PINCTRL_RT2880 = yes;
         # PINCTRL_SINGLE is not set
-        PINCTRL_SX150X = yes;
-        POWER_RESET = yes;
-        POWER_RESET_GPIO = yes;
-        POWER_SUPPLY = yes;
-        QUEUED_RWLOCKS = yes;
-        QUEUED_SPINLOCKS = yes;
+        #PINCTRL_SX150X = yes;
+        #POWER_RESET = yes;
+        #POWER_RESET_GPIO = yes;
+        #POWER_SUPPLY = yes;
+        #QUEUED_RWLOCKS = yes;
+        #QUEUED_SPINLOCKS = yes;
         RALINK = yes;
         RALINK_WDT = yes;
         RATIONAL = yes;
-        REGMAP = yes;
-        REGMAP_MMIO = yes;
+        #REGMAP = yes;
+        #REGMAP_MMIO = yes;
         REGULATOR = yes;
-        REGULATOR_FIXED_VOLTAGE = yes;
-        RESET_CONTROLLER = yes;
-        RFS_ACCEL = yes;
-        RPS = yes;
+        #REGULATOR_FIXED_VOLTAGE = yes;
+        #RESET_CONTROLLER = yes;
+        #RFS_ACCEL = yes;
+        #RPS = yes;
         #RTC = yes;
-        RTC_CLASS = yes;
-        RTC_DRV_BQ32K = yes;
-        RTC_DRV_PCF8563 = yes;
-        RTC_I2C_AND_SPI = yes;
+        #RTC_CLASS = yes;
+        #RTC_DRV_BQ32K = yes;
+        #RTC_DRV_PCF8563 = yes;
+        #RTC_I2C_AND_SPI = yes;
         #RTC_MC146818_LIB = yes;
-        SCHED_SMT = yes;
+        #SCHED_SMT = yes;
         SERIAL_8250_NR_UARTS = freeform "3";
         SERIAL_8250_RUNTIME_UARTS = freeform "3";
         SERIAL_MCTRL_GPIO = yes;
@@ -330,23 +331,23 @@ let
         SRCU = yes;
         SWPHY = yes;
         SYNC_R4K = yes;
-        SYSCTL_EXCEPTION_TRACE = yes;
-        SYS_HAS_CPU_MIPS32_R1 = yes;
-        SYS_HAS_CPU_MIPS32_R2 = yes;
-        SYS_HAS_EARLY_PRINTK = yes;
-        SYS_SUPPORTS_32BIT_KERNEL = yes;
-        SYS_SUPPORTS_ARBIT_HZ = yes;
+        #SYSCTL_EXCEPTION_TRACE = yes;
+        #SYS_HAS_CPU_MIPS32_R1 = yes;
+        #SYS_HAS_CPU_MIPS32_R2 = yes;
+        #SYS_HAS_EARLY_PRINTK = yes;
+        #SYS_SUPPORTS_32BIT_KERNEL = yes;
+        #SYS_SUPPORTS_ARBIT_HZ = yes;
         #SYS_SUPPORTS_HIGHMEM = yes;
         #SYS_SUPPORTS_HOTPLUG_CPU = yes;
-        SYS_SUPPORTS_LITTLE_ENDIAN = yes;
-        SYS_SUPPORTS_MIPS16 = yes;
+        #SYS_SUPPORTS_LITTLE_ENDIAN = yes;
+        #SYS_SUPPORTS_MIPS16 = yes;
         #SYS_SUPPORTS_MIPS_CPS = yes;
         #SYS_SUPPORTS_MULTITHREADING = yes;
         #SYS_SUPPORTS_SCHED_SMT = yes;
         #SYS_SUPPORTS_SMP = yes;
-        SYS_SUPPORTS_ZBOOT = yes;
+        #SYS_SUPPORTS_ZBOOT = yes;
         TARGET_ISA_REV = freeform "2";
-        TICK_CPU_ACCOUNTING = yes;
+        #TICK_CPU_ACCOUNTING = yes;
         TIMER_OF = yes;
         TIMER_PROBE = yes;
         #TREE_RCU = yes;
@@ -358,8 +359,8 @@ let
         WEAK_ORDERING = yes;
         #WEAK_REORDERING_BEYOND_LLSC = yes;
         #XPS = yes;
-        ZLIB_DEFLATE = yes;
-        ZLIB_INFLATE = yes;
+        #ZLIB_DEFLATE = yes;
+        #ZLIB_INFLATE = yes;
       };
     };
   };
@@ -555,7 +556,11 @@ let
         #  cp -v arch/mips/boot/vmlinu[xz]* $out/
         #  cp -v vmlinux $out/
         #'';
-        postInstall = lib.replaceStrings ["find . -type f -perm -u=w -print0 | xargs -0 -r rm"] [""] o.postInstall;
+        postInstall = ''
+          cp arch/mips/boot/vmlinux.bin $out
+          cp arch/mips/boot/vmlinux.bin.gz $out
+          cp arch/mips/boot/uImage $out
+        '' + (lib.replaceStrings ["find . -type f -perm -u=w -print0 | xargs -0 -r rm"] [""] o.postInstall);
         #  ${o.postInstall}
         #  chmod -R +rw $dev
         #  #cp -rv ${self.kernelSrc}/arch/mips/* $dev/lib/modules/${self.kernel.modDirVersion}/source/arch/mips/.
