@@ -78,7 +78,7 @@ let
         ARCH_SUSPEND_POSSIBLE = yes;
         #AT803X_PHY = yes;
         #BLK_MQ_PCI = yes;
-        #BOARD_SCACHE = yes;
+        BOARD_SCACHE = yes;
         #BOUNCE = yes;
         #CEVT_R4K = yes;
         #HAVE_CLK = yes;
@@ -211,8 +211,8 @@ let
         MIPS_CPS = yes;
         #MIPS_CPS_CPUIDLE = yes;
         # MIPS_CPS_NS16550_BOOL is not set
-        #MIPS_CPS_PM = yes;
-        #MIPS_CPU_SCACHE = yes;
+        MIPS_CPS_PM = yes;
+        MIPS_CPU_SCACHE = yes;
         # MIPS_ELF_APPENDED_DTB is not set
         #MIPS_GIC = yes;
         #MIPS_L1_CACHE_SHIFT = freeform "5";
