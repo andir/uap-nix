@@ -214,12 +214,12 @@ let
         MIPS_CPS_PM = yes;
         MIPS_CPU_SCACHE = yes;
         # MIPS_ELF_APPENDED_DTB is not set
-        #MIPS_GIC = yes;
-        #MIPS_L1_CACHE_SHIFT = freeform "5";
-        #MIPS_LD_CAN_LINK_VDSO = yes;
-        #MIPS_MT = yes;
-        #MIPS_MT_FPAFF = yes;
-        #MIPS_MT_SMP = yes;
+        MIPS_GIC = yes;
+        MIPS_L1_CACHE_SHIFT = freeform "5";
+        MIPS_LD_CAN_LINK_VDSO = yes;
+        MIPS_MT = yes;
+        MIPS_MT_FPAFF = yes;
+        MIPS_MT_SMP = yes;
         # MIPS_NO_APPENDED_DTB is not set
         #MIPS_NR_CPU_NR_MAP=4;
         #MIPS_PERF_SHARED_TC_COUNTERS = yes;
