@@ -531,7 +531,7 @@ let
         '' + (lib.replaceStrings ["find . -type f -perm -u=w -print0 | xargs -0 -r rm"] [""] o.postInstall);
       });
 
-      dtb = pkgs.runCommandCC "uaclite.dtb" { nativeBuildInputs = [ pkgs.pkgsBuildHost.dtc ]; } ''
+      dtb = pkgs.runCommandCC "cudy_x6.dtb" { nativeBuildInputs = [ pkgs.pkgsBuildHost.dtc ]; } ''
         unpackFile ${self.kernel.src}
         $CC -E -nostdinc -x assembler-with-cpp -I linux*/include -I ${self.openwrt-src}/target/linux/ramips/dts ${./mt7621_cudy_x6.dts} -o - | dtc -o $out
       '';
