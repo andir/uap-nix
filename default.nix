@@ -83,7 +83,6 @@ let
         BOUNCE = yes;
         CEVT_R4K = yes;
         HAVE_CLK = yes;
-        HAVE_MEMBLOCK = yes;
         CLKSRC_MIPS_GIC = yes;
         CLOCKSOURCE_WATCHDOG = yes;
         CLONE_BACKWARDS = yes;
@@ -390,26 +389,26 @@ let
   mkTargets = targetSystem: pkgs:
     let inherit (pkgs) lib; in
     lib.makeScope pkgs.newScope (self: {
-      openwrt-src =
-        let
-          rev = "cbfce9236754700a343632fff8e035acbc1b1384";
-          base = pkgs.pkgsBuildHost.fetchurl {
-            name = "openwrt-${rev}.tar.gz";
-            url = "https://git.openwrt.org/?p=openwrt/openwrt.git;a=snapshot;h=${rev};sf=tgz";
-            sha256 = "08fhmw7p81l6kw1j4qbx68irh3xzsynjw5bc8rvns5wavz9irm0r";
-          };
-          mt7621_cudy_pr_diff = pkgs.pkgsBuildHost.fetchurl {
-            url = "https://github.com/alessioprescenzo/openwrt/commit/e8b2e491d458ed6c7ac576a997a1bc6181d75106.patch";
-            sha256 = "16qwazf83vd13fjvnj7z3i98svv1ix1mrs30ax5yb11kdfpyb1hy";
-          };
-        in
-        pkgs.pkgsBuildHost.applyPatches {
-          name = "openwrt-src-patched-for-cudy-x6";
-          src = base;
-          patches = [
-            mt7621_cudy_pr_diff
-          ];
-        };
+      #openwrt-src =
+      #  let
+      #    rev = "cbfce9236754700a343632fff8e035acbc1b1384";
+      #    base = pkgs.pkgsBuildHost.fetchurl {
+      #      name = "openwrt-${rev}.tar.gz";
+      #      url = "https://git.openwrt.org/?p=openwrt/openwrt.git;a=snapshot;h=${rev};sf=tgz";
+      #      sha256 = "08fhmw7p81l6kw1j4qbx68irh3xzsynjw5bc8rvns5wavz9irm0r";
+      #    };
+      #    mt7621_cudy_pr_diff = pkgs.pkgsBuildHost.fetchurl {
+      #      url = "https://github.com/alessioprescenzo/openwrt/commit/e8b2e491d458ed6c7ac576a997a1bc6181d75106.patch";
+      #      sha256 = "16qwazf83vd13fjvnj7z3i98svv1ix1mrs30ax5yb11kdfpyb1hy";
+      #    };
+      #  in
+      #  pkgs.pkgsBuildHost.applyPatches {
+      #    name = "openwrt-src-patched-for-cudy-x6";
+      #    src = base;
+      #    patches = [
+      #      mt7621_cudy_pr_diff
+      #    ];
+      #  };
       uboot = (pkgs.buildUBoot {
         version = "blocktrron-uboot-cudy-x6";
         src = pkgs.pkgsBuildHost.fetchFromGitHub {
@@ -525,7 +524,7 @@ let
         useCommonConfig = false;
         autoModules = false;
         ignoreConfigErrors = false;
-        kernelPatches = [ ];
+        kernelPatches = [ { name = "add-debug-logging"; patch = ./0001-Add-debug-logging.patch; } ];
         structuredExtraConfig = pkgs.lib.mkForce ((targetSystem.structuredKernelExtraConfig or (_: { })) pkgs);
       }).overrideAttrs (o: rec {
         postInstall = ''
@@ -535,9 +534,28 @@ let
         '' + (lib.replaceStrings ["find . -type f -perm -u=w -print0 | xargs -0 -r rm"] [""] o.postInstall);
       });
 
-      dtb = pkgs.runCommandCC "cudy_x6.dtb" { nativeBuildInputs = [ pkgs.pkgsBuildHost.dtc ]; } ''
-        unpackFile ${self.kernel.src}
-        $CC -E -nostdinc -x assembler-with-cpp -I linux*/include -I ${self.openwrt-src}/target/linux/ramips/dts ${./mt7621_cudy_x6.dts} -o - | dtc -o $out
+      dtb = pkgs.runCommandCC "cudy_x6.dtb" {
+        nativeBuildInputs = [ pkgs.pkgsBuildHost.dtc ];
+        kernel = self.kernel.dev + "/lib/modules/${self.kernel.version}/source/";
+        input = ./mt7621_cudy_x6.dts;
+        outputs = [ "out" "yaml" "dts" ];
+      } ''
+        echo testing
+        test -e $kernel/arch/mips/boot/dts/ralink/mt7621.dtsi || echo "mt7621.dtsi not found"
+        $CC -E -nostdinc -x assembler-with-cpp -I $kernel/include -I $kernel/arch/mips/boot/dts/ralink $kernel/arch/mips/boot/dts/ralink/mt7621.dtsi -o test > /dev/null || exit 123
+
+        echo preprocessing
+        $CC -E -nostdinc -x assembler-with-cpp -I $kernel/include -I $kernel/arch/mips/boot/dts/ralink -o precompiled $input
+        sed -e '/^# [0-9]/d' -i precompiled
+
+        echo generating yaml
+        dtc -O yaml -o $yaml precompiled
+
+        echo generating dts
+        dtc -O dts -o $dts precompiled
+
+        echo generating binary 
+        dtc -o $out precompiled
       '';
 
       # Create a uboot image that can be booted from the builtin cudy loader.
@@ -562,6 +580,7 @@ let
         kernelAddress = "0x80001000";
 
         dtb = self.dtb;
+        dtbAddress = "0x82000000";
 
         initrd = self.initramfs + "/initrd";
         initrdAddress = "0x81000000";
