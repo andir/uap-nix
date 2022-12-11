@@ -1,0 +1,171 @@
+From 75cd749ebdfdf705035bda4ca3514f83f84b1cbf Mon Sep 17 00:00:00 2001
+From: Andreas Rammhold <andreas@rammhold.de>
+Date: Sun, 11 Dec 2022 19:50:55 +0100
+Subject: [PATCH] debug gpiolib
+
+---
+ drivers/gpio/gpiolib-of.c |  8 +++++--
+ drivers/gpio/gpiolib.c    | 46 ++++++++++++++++++++++++++++++---------
+ 2 files changed, 42 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/gpio/gpiolib-of.c b/drivers/gpio/gpiolib-of.c
+index a037b50bef330..0ea4c1e10557c 100644
+--- a/drivers/gpio/gpiolib-of.c
++++ b/drivers/gpio/gpiolib-of.c
+@@ -949,13 +949,17 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
+ 	for (;; index++) {
+ 		ret = of_parse_phandle_with_fixed_args(np, "gpio-ranges", 3,
+ 				index, &pinspec);
+-		if (ret)
++		if (ret) {
++                        pr_err("of_gpiochip_add_pin_range break");
+ 			break;
++		}
+ 
+ 		pctldev = of_pinctrl_get(pinspec.np);
+ 		of_node_put(pinspec.np);
+-		if (!pctldev)
++		if (!pctldev) {
++                        pr_err("of_gpiochip_add_pin_range of_pinctrl_get");
+ 			return -EPROBE_DEFER;
++		}
+ 
+ 		if (pinspec.args[2]) {
+ 			if (group_names) {
+diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
+index cc9c0a12259e1..15e51a9ebd1d2 100644
+--- a/drivers/gpio/gpiolib.c
++++ b/drivers/gpio/gpiolib.c
+@@ -629,6 +629,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
+ 	gdev->dev.fwnode = dev_fwnode(&gdev->dev) ?: fwnode;
+ 
+ 	gdev->id = ida_alloc(&gpio_ida, GFP_KERNEL);
++	pr_info("gdev-> <0 %i\n", (int)gdev->id);
+ 	if (gdev->id < 0) {
+ 		ret = gdev->id;
+ 		goto err_free_gdev;
+@@ -638,6 +639,8 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
+ 	if (ret)
+ 		goto err_free_ida;
+ 
++	chip_err(gc, "Trying to intialize GPIO %d\n", gc->ngpio);
++
+ 	device_initialize(&gdev->dev);
+ 	if (gc->parent && gc->parent->driver)
+ 		gdev->owner = gc->parent->driver->owner;
+@@ -650,6 +653,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
+ 	gdev->descs = kcalloc(gc->ngpio, sizeof(gdev->descs[0]), GFP_KERNEL);
+ 	if (!gdev->descs) {
+ 		ret = -ENOMEM;
++		chip_err(gc, "ENOMEN\n");
+ 		goto err_free_dev_name;
+ 	}
+ 
+@@ -685,6 +689,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
+ 
+ 	gdev->label = kstrdup_const(gc->label ?: "unknown", GFP_KERNEL);
+ 	if (!gdev->label) {
++		chip_err(gc, "ENOMEM2\n");
+ 		ret = -ENOMEM;
+ 		goto err_free_descs;
+ 	}
+@@ -706,6 +711,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
+ 		if (base < 0) {
+ 			ret = base;
+ 			spin_unlock_irqrestore(&gpio_lock, flags);
++			chip_err(gc, "gpiochip_find_base < 0\n");
+ 			goto err_free_label;
+ 		}
+ 		/*
+@@ -738,24 +744,34 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
+ 
+ 	if (gc->names) {
+ 		ret = gpiochip_set_desc_names(gc);
+-		if (ret)
++		if (ret) {
++		        chip_err(gc, "gpiochip_set_desc_name failed\n");
+ 			goto err_remove_from_list;
++		}
+ 	}
+ 	ret = devprop_gpiochip_set_names(gc);
+-	if (ret)
++	if (ret) {
++		chip_err(gc, "devprop_gpiochip_set_names failed\n");
+ 		goto err_remove_from_list;
++	}
+ 
+ 	ret = gpiochip_alloc_valid_mask(gc);
+-	if (ret)
++	if (ret) {
++		chip_err(gc, "gpiochip_alloc_valid_mask\n");
+ 		goto err_remove_from_list;
++	}
+ 
+ 	ret = of_gpiochip_add(gc);
+-	if (ret)
++	if (ret) {
++		chip_err(gc, "of_gpiochip_add\n");
+ 		goto err_free_gpiochip_mask;
++	}
+ 
+ 	ret = gpiochip_init_valid_mask(gc);
+-	if (ret)
++	if (ret) {
++		chip_err(gc, "gpiochip_init_valid_mask\n");
+ 		goto err_remove_of_chip;
++	}
+ 
+ 	for (i = 0; i < gc->ngpio; i++) {
+ 		struct gpio_desc *desc = &gdev->descs[i];
+@@ -770,24 +786,32 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
+ 	}
+ 
+ 	ret = gpiochip_add_pin_ranges(gc);
+-	if (ret)
++	if (ret) {
++		chip_err(gc, "gpiochip_add_pin_ranges failed\n");
+ 		goto err_remove_of_chip;
++	}
+ 
+ 	acpi_gpiochip_add(gc);
+ 
+ 	machine_gpiochip_add(gc);
+ 
+ 	ret = gpiochip_irqchip_init_valid_mask(gc);
+-	if (ret)
++	if (ret) {
++		chip_err(gc, "gpiochip_irqchip_init_valid_mask\n");
+ 		goto err_remove_acpi_chip;
++	}
+ 
+ 	ret = gpiochip_irqchip_init_hw(gc);
+-	if (ret)
++	if (ret) {
++		chip_err(gc, "gpiochip_ireqchip_init_hw\n");
+ 		goto err_remove_acpi_chip;
++	}
+ 
+ 	ret = gpiochip_add_irqchip(gc, lock_key, request_key);
+-	if (ret)
++	if (ret) {
++		chip_err(gc, "gpiochip_add_irqchip\n");
+ 		goto err_remove_irqchip_mask;
++	}
+ 
+ 	/*
+ 	 * By first adding the chardev, and then adding the device,
+@@ -799,8 +823,10 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
+ 	 */
+ 	if (gpiolib_initialized) {
+ 		ret = gpiochip_setup_dev(gdev);
+-		if (ret)
++		if (ret) {
++                        chip_err(gc, "gpiochip_setup_dev\n");
+ 			goto err_remove_irqchip;
++		}
+ 	}
+ 	return 0;
+ 
+-- 
+2.38.1
+

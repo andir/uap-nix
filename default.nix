@@ -51,9 +51,12 @@ let
         WIRELESS = yes;
         CFG80211 = yes;
         MAC80211 = yes;
+        MT76_CORE = yes;
         MT7915E = yes;
         IPV6 = yes;
         WIREGUARD = module;
+        WLAN_VENDOR_MEDIATEK = yes;
+        
         #MODULE_SIG = yes;
         #MODULE_SIG_FORMAT = yes;
         #SYSTEM_DATA_VERIFICATION = yes; # required for mac80211
@@ -72,19 +75,19 @@ let
 
         ARCH_KEEP_MEMBLOCK = yes;
         ARCH_32BIT_OFF_T = yes;
-        ARCH_HIBERNATION_POSSIBLE = yes;
+        #ARCH_HIBERNATION_POSSIBLE = yes;
         ARCH_MMAP_RND_BITS_MAX = freeform "15";
         ARCH_MMAP_RND_COMPAT_BITS_MAX = freeform "15";
-        ARCH_NEEDS_CPU_IDLE_COUPLED = yes;
-        ARCH_SUSPEND_POSSIBLE = yes;
+        #ARCH_NEEDS_CPU_IDLE_COUPLED = yes;
+        #ARCH_SUSPEND_POSSIBLE = yes;
         AT803X_PHY = yes;
         BLK_MQ_PCI = yes;
-        BOARD_SCACHE = yes;
-        BOUNCE = yes;
+        #BOARD_SCACHE = yes;
+        #BOUNCE = yes;
         CEVT_R4K = yes;
         HAVE_CLK = yes;
-        CLKSRC_MIPS_GIC = yes;
-        CLOCKSOURCE_WATCHDOG = yes;
+        #CLKSRC_MIPS_GIC = yes;
+        #CLOCKSOURCE_WATCHDOG = yes;
         CLONE_BACKWARDS = yes;
         #CMDLINE="rootfstype=squashfs,jffs2";
         CMDLINE = freeform "earlycon=uart8250,mmio32,0x1e000c00 earlyprintk debug";
@@ -105,12 +108,12 @@ let
         ## CPU_MIPS32_R1 is not set
         CPU_MIPS32_R2 = yes;
         CPU_MIPSR2 = yes;
-        CPU_MIPSR2_IRQ_EI = yes;
-        CPU_MIPSR2_IRQ_VI = yes;
+        #CPU_MIPSR2_IRQ_EI = yes;
+        #CPU_MIPSR2_IRQ_VI = yes;
         CPU_NEEDS_NO_SMARTMIPS_OR_MICROMIPS = yes;
         CPU_PM = yes;
         CPU_R4K_CACHE_TLB = yes;
-        CPU_RMAP = yes;
+        #CPU_RMAP = yes;
         CPU_SUPPORTS_32BIT_KERNEL = yes;
         CPU_SUPPORTS_HIGHMEM = yes;
         CPU_SUPPORTS_MSA = yes;
@@ -124,11 +127,11 @@ let
         CRYPTO_RNG2 = yes;
         CSRC_R4K = yes;
         DEBUG_PINCTRL = yes;
-        DIMLIB = yes;
+        #DIMLIB = yes;
         DMA_NONCOHERENT = yes;
         # DTB_GNUBEE1 is not set
         # DTB_GNUBEE2 is not set
-        # DTB_RT_NONE = yes;
+        #DTB_RT_NONE = yes;
         DTC = yes;
         EARLY_PRINTK = yes;
         FIXED_PHY = yes;
@@ -143,7 +146,7 @@ let
         GENERIC_GETTIMEOFDAY = yes;
         GENERIC_IOMAP = yes;
         GENERIC_IRQ_CHIP = yes;
-        GENERIC_IRQ_EFFECTIVE_AFF_MASK = yes;
+        #GENERIC_IRQ_EFFECTIVE_AFF_MASK = yes;
         GENERIC_IRQ_SHOW = yes;
         GENERIC_LIB_ASHLDI3 = yes;
         GENERIC_LIB_ASHRDI3 = yes;
@@ -161,7 +164,7 @@ let
         GPIOLIB_IRQCHIP = yes;
         GPIO_GENERIC = yes;
         GPIO_MT7621 = yes;
-        # GPIO_RALINK is not set
+        GPIO_RALINK = yes;
         WATCHDOG = yes;
         GPIO_WATCHDOG = yes;
         # GPIO_WATCHDOG_ARCH_INITCALL is not set
@@ -171,7 +174,7 @@ let
         HAS_DMA = yes;
         HAS_IOMEM = yes;
         HAS_IOPORT_MAP = yes;
-        HIGHMEM = yes;
+        #HIGHMEM = yes;
         I2C = yes;
         I2C_BOARDINFO = yes;
         I2C_CHARDEV = yes;
@@ -203,27 +206,27 @@ let
         #MIPS_ASID_SHIFT=0;
         #MIPS_CBPF_JIT = yes;
         MIPS_CLOCK_VSYSCALL = yes;
-        MIPS_CM = yes;
+        #MIPS_CM = yes;
         # MIPS_CMDLINE_BUILTIN_EXTEND is not set
         # MIPS_CMDLINE_DTB_EXTEND is not set
         # MIPS_CMDLINE_FROM_BOOTLOADER is not set
         MIPS_CMDLINE_FROM_DTB = yes;
-        MIPS_CPC = yes;
-        MIPS_CPS = yes;
-        MIPS_CPS_CPUIDLE = yes;
+        #MIPS_CPC = yes;
+        #MIPS_CPS = yes;
+        #MIPS_CPS_CPUIDLE = yes;
         # MIPS_CPS_NS16550_BOOL is not set
-        MIPS_CPS_PM = yes;
+        #MIPS_CPS_PM = yes;
         MIPS_CPU_SCACHE = yes;
         # MIPS_ELF_APPENDED_DTB is not set
-        MIPS_GIC = yes;
-        MIPS_L1_CACHE_SHIFT = freeform "5";
+        #MIPS_GIC = yes;
+        #MIPS_L1_CACHE_SHIFT = freeform "5";
         MIPS_LD_CAN_LINK_VDSO = yes;
-        MIPS_MT = yes;
-        MIPS_MT_FPAFF = yes;
-        MIPS_MT_SMP = yes;
+        #MIPS_MT = yes;
+        #MIPS_MT_FPAFF = yes;
+        #MIPS_MT_SMP = yes;
         # MIPS_NO_APPENDED_DTB is not set
         #MIPS_NR_CPU_NR_MAP=4;
-        MIPS_PERF_SHARED_TC_COUNTERS = yes;
+        #MIPS_PERF_SHARED_TC_COUNTERS = yes;
         MIPS_RAW_APPENDED_DTB = yes;
         MIPS_SPRAM = yes;
         #MODULES_USE_ELF_REL = yes;
@@ -233,7 +236,7 @@ let
         MTD_NAND_CORE = yes;
         MTD_NAND_ECC = yes;
         MTD_NAND_ECC_SW_HAMMING = yes;
-        #MTD_NAND_MT7621 = yes;
+        MTD_NAND_MT7621 = yes;
         #MTD_NAND_MTK_BMT = yes;
         MTD_PHYSMAP = yes;
         MTD_RAW_NAND = yes;
@@ -284,14 +287,16 @@ let
         PCI_DRIVERS_GENERIC = yes;
         PCIE_MT7621 = yes;
         PHY_MT7621_PCI = yes;
-        #PCI_MT7621_PHY = yes;
         PERF_USE_VMALLOC = yes;
         PGTABLE_LEVELS = freeform "2";
         PHYLIB = yes;
         PHYLINK = yes;
         # PHY_RALINK_USB is not set
         PINCTRL = yes;
+        PINCTRL_RALINK = yes;
+        PINCTRL_MT7621 = yes;
         #PINCTRL_AW9523 = yes;
+        #SOC_RT288X = yes;
         #PINCTRL_RT2880 = yes;
         # PINCTRL_SINGLE is not set
         #PINCTRL_SX150X = yes;
@@ -319,6 +324,7 @@ let
         SCHED_SMT = yes;
         SERIAL_8250_NR_UARTS = freeform "3";
         SERIAL_8250_RUNTIME_UARTS = freeform "3";
+        #SERIAL_8250_RT288X = yes;
         SERIAL_MCTRL_GPIO = yes;
         SERIAL_OF_PLATFORM = yes;
         SGL_ALLOC = yes;
@@ -326,7 +332,6 @@ let
         SMP_UP = yes;
         SOC_BUS = yes;
         SOC_MT7621 = yes;
-        SOC_RT288X = no;
         SPI = yes;
         SPI_MASTER = yes;
         SPI_MEM = yes;
@@ -454,12 +459,12 @@ let
               pkgs.busybox
               #pkgs.hostapd
               #pkgs.dropbear
-              #pkgs.iputils
+              pkgs.iputils
               #pkgs.tcpdump
-              #(lib.hiPrio (pkgs.writeScriptBin "reboot" ''
-              #  #!/bin/sh
-              #  echo b > /proc/sysrq-trigger
-              #''))
+              (lib.hiPrio (pkgs.writeScriptBin "reboot" ''
+                #!/bin/sh
+                echo b > /proc/sysrq-trigger
+              ''))
             ];
             pathsToLink = [ "/bin" ];
           }) + "/bin";
@@ -474,20 +479,22 @@ let
               mount -t sysfs sys /sys
               mkdir -p /run
               mount -t tmpfs tmpfs /run
+              mount -t debugfs debugfs /sys/kernel/debug
+
               ip l set eth0 up
               #${self.cal-wifi}
               exec sh
             '';
             symlink = "/init";
           }
-          #{
-          #  object = pkgs.runCommandNoCC "firmware-ath10k" { } ''
-          #    mkdir -p $out/mediatek
-          #    cp -r ${pkgs.firmwareLinuxNonfree}/lib/firmware/mediatek/mt7915_{rom_patch,wa,wm}.bin $out/mediatek/
-          #    cp -r ${pkgs.wireless-regdb}/lib/firmware/regulatory.db $out/
-          #  '';
-          #  symlink = "/lib/firmware";
-          #}
+          {
+            object = pkgs.runCommandNoCC "firmware-ath10k" { } ''
+              mkdir -p $out/mediatek
+              cp -r ${pkgs.firmwareLinuxNonfree}/lib/firmware/mediatek/mt7915_{rom_patch,wa,wm}.bin $out/mediatek/
+              cp -r ${pkgs.wireless-regdb}/lib/firmware/regulatory.db $out/
+            '';
+            symlink = "/lib/firmware";
+          }
           {
             object = pkgs.writeText "hostapd.conf" ''
               interface=wlan0
@@ -510,7 +517,7 @@ let
 
       cal-wifi = pkgs.writeScript "cal-wifi" ''
         #!/bin/sh
-        mtd=$(grep '"art"' /proc/mtd | cut -d : -f 1)
+        mtd=$(grep '"firmware"' /proc/mtd | cut -d : -f 1)
         dd if=/dev/$mtd of=/lib/firmware/ath10k/cal-pci-0000:00:00.0.bin iflag=skip_bytes,fullblock bs=$((0x844)) skip=$((0x5000)) count=1
       '';
 
@@ -524,7 +531,13 @@ let
         useCommonConfig = false;
         autoModules = false;
         ignoreConfigErrors = false;
-        kernelPatches = [ { name = "add-debug-logging"; patch = ./0001-Add-debug-logging.patch; } ];
+        kernelPatches = [
+          { name = "add-debug-logging"; patch = ./0001-Add-debug-logging.patch; }
+          { name = "add-mtd-driver"; patch = ./0001-mtd-rawnand-add-driver-support-for-MT7621-nand-flash.patch; }
+          { name = "debug-gpiolib"; patch = ./0001-debug-gpiolib.patch; }
+          { name = "ralink-gpio"; patch = ./802-GPIO-MIPS-ralink-add-gpio-driver-for-ralink-SoC.patch; }
+#          { name = "825-i2c-MIPS-adds-ralink-I2C-driver.patch"; patch = ./825-i2c-MIPS-adds-ralink-I2C-driver.patch; }
+        ];
         structuredExtraConfig = pkgs.lib.mkForce ((targetSystem.structuredKernelExtraConfig or (_: { })) pkgs);
       }).overrideAttrs (o: rec {
         postInstall = ''

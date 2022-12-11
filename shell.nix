@@ -6,10 +6,10 @@ let
   pkgs = import nixpkgs { };
 
   off = ''
-    ${pkgs.mosquitto}/bin/mosquitto_pub -h 10.250.43.1 -t 'zigbee2mqtt/0xcc86ecfffe8bf9a7/set' -m '{"state": "OFF"}'
+    ${pkgs.mosquitto}/bin/mosquitto_pub -h 10.250.43.1 -t 'zigbee2mqtt/0xb4e3f9fffebc1ece/set' -m '{"state": "OFF"}'
   '';
   on = ''
-    ${pkgs.mosquitto}/bin/mosquitto_pub -h 10.250.43.1 -t 'zigbee2mqtt/0xcc86ecfffe8bf9a7/set' -m '{"state": "ON"}'
+    ${pkgs.mosquitto}/bin/mosquitto_pub -h 10.250.43.1 -t 'zigbee2mqtt/0xb4e3f9fffebc1ece/set' -m '{"state": "ON"}'
   '';
 
   powercycle = pkgs.writeShellScriptBin "cycle" ''
@@ -20,11 +20,11 @@ let
   '';
 
   retry = pkgs.writeShellScriptBin "retry" ''
-    PATH=${pkgs.coreutils}/bin:${pkgs.nix_2_3}/bin:${pkgs.rsync}/bin/:${pkgs.openssh}/bin
+    PATH=${pkgs.coreutils}/bin:${pkgs.nix}/bin:${pkgs.rsync}/bin/:${pkgs.openssh}/bin
     set -ex
     ${off}
     nix-build -A mt7621.fit -o fit
-    scp $(readlink -f fit) root@172.20.24.1:/var/run/cudy-x6-firmware-dir/2/fit.img
+    scp $(readlink -f fit) root@172.20.24.1:/var/lib/atftpd/6/C0A80101.img
     sleep 3
     ${on}
   '';

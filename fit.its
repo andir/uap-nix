@@ -23,6 +23,8 @@
                         data = /incbin/("@dtb@");
                         type = "flat_dt";
                         arch = "mips";
+			load = <@dtbAddress@>;
+			entry = <@dtbAddress@>;
                         compression = "none";
                         hash {
                                 algo = "sha1";
