@@ -6,7 +6,7 @@ Playing around with nixpkgs's cross-compilation support.
 
 Connect to serial on the device with 115200n8.
 
-Run `tftpboot 0x4000000` (the default address collides with the load
+Run `tftpboot 0x4000000; bootm` (the default address collides with the load
 addresses in our image).
 
 Profit / debug / cry

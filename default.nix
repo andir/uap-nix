@@ -56,7 +56,10 @@ let
         IPV6 = yes;
         WIREGUARD = module;
         WLAN_VENDOR_MEDIATEK = yes;
-        
+        NET_SCHED = yes;
+        NET_SCH_FQ_CODEL = yes;
+        NET_SCH_DEFAULT = yes;
+
         #MODULE_SIG = yes;
         #MODULE_SIG_FORMAT = yes;
         #SYSTEM_DATA_VERIFICATION = yes; # required for mac80211
@@ -71,7 +74,6 @@ let
         #CONFIG_SPI_MT7621 = yes;
         BLK_DEV_INITRD = yes;
         RD_GZIP = yes;
-
 
         ARCH_KEEP_MEMBLOCK = yes;
         ARCH_32BIT_OFF_T = yes;
@@ -369,6 +371,14 @@ let
         XPS = yes;
         ZLIB_DEFLATE = yes;
         ZLIB_INFLATE = yes;
+
+        # FIXME: get rid of all the FS's I don't need
+        # NFS_V4_1 = no;
+        # NFS_V4_2 = no;
+        # NFS_COMMON = no;
+        # ROOT_NFS = no;
+        # EXT4_FS = no;
+        # JBD2 = no;
       };
     };
   };
@@ -457,10 +467,10 @@ let
             name = "uap-nix-bin";
             paths = [
               pkgs.busybox
-              #pkgs.hostapd
+              pkgs.hostapd
               #pkgs.dropbear
               pkgs.iputils
-              #pkgs.tcpdump
+              pkgs.tcpdump
               (lib.hiPrio (pkgs.writeScriptBin "reboot" ''
                 #!/bin/sh
                 echo b > /proc/sysrq-trigger
@@ -479,18 +489,27 @@ let
               mount -t sysfs sys /sys
               mkdir -p /run
               mount -t tmpfs tmpfs /run
+              mount -t tmpfs tmpfs /tmp
               mount -t debugfs debugfs /sys/kernel/debug
 
-              ip l set eth0 up
+              # init some random numbers
+              echo "${builtins.unsafeDiscardStringContext self.kernel.outPath}" > /dev/random
+
+              #mkdir -p /lib/firmware/mediatek
+              #cp -rv /lib/firmware-static/mediatek/* /lib/firmware/mediatek/.
+              #dd if=/dev/mtd2 of=/lib/firmware/mediatek/mt7915_eeprom_dbdc.bin
+
+              ip l set wan up
               #${self.cal-wifi}
               exec sh
             '';
             symlink = "/init";
           }
           {
-            object = pkgs.runCommandNoCC "firmware-ath10k" { } ''
+            object = pkgs.runCommandNoCC "firmware-mediatek" { } ''
               mkdir -p $out/mediatek
               cp -r ${pkgs.firmwareLinuxNonfree}/lib/firmware/mediatek/mt7915_{rom_patch,wa,wm}.bin $out/mediatek/
+              cp ${./eeprom-backup/factory} $out/mediatek/mt7915_eeprom_dbdc.bin
               cp -r ${pkgs.wireless-regdb}/lib/firmware/regulatory.db $out/
             '';
             symlink = "/lib/firmware";
@@ -520,7 +539,6 @@ let
         mtd=$(grep '"firmware"' /proc/mtd | cut -d : -f 1)
         dd if=/dev/$mtd of=/lib/firmware/ath10k/cal-pci-0000:00:00.0.bin iflag=skip_bytes,fullblock bs=$((0x844)) skip=$((0x5000)) count=1
       '';
-
 
       kernelSrc =
         pkgs.linux_latest.src;

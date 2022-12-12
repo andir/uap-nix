@@ -146,6 +146,12 @@
 				reg = <0x1ff0000 0x10000>;
 				read-only;
 			};
+
+			parition@0 {
+				label = "all";
+				reg = <0x0 0x2000000>;
+				read-only;
+			};
 		};
 	};
 };
