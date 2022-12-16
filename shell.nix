@@ -32,6 +32,8 @@ let
 in pkgs.mkShell {
   nativeBuildInputs = [
     (pkgs.callPackage sources.npins { })
+    #off
+    #on
     powercycle
     retry
     pkgs.cargo

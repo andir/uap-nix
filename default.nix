@@ -471,6 +471,7 @@ let
               #pkgs.dropbear
               pkgs.iputils
               pkgs.tcpdump
+              pkgs.iw
               (lib.hiPrio (pkgs.writeScriptBin "reboot" ''
                 #!/bin/sh
                 echo b > /proc/sysrq-trigger
@@ -509,7 +510,7 @@ let
             object = pkgs.runCommandNoCC "firmware-mediatek" { } ''
               mkdir -p $out/mediatek
               cp -r ${pkgs.firmwareLinuxNonfree}/lib/firmware/mediatek/mt7915_{rom_patch,wa,wm}.bin $out/mediatek/
-              cp ${./eeprom-backup/factory} $out/mediatek/mt7915_eeprom_dbdc.bin
+              cp ${./mtd-backup/factory.slim} $out/mediatek/mt7915_eeprom_dbdc.bin
               cp -r ${pkgs.wireless-regdb}/lib/firmware/regulatory.db $out/
             '';
             symlink = "/lib/firmware";
@@ -554,6 +555,8 @@ let
           { name = "add-mtd-driver"; patch = ./0001-mtd-rawnand-add-driver-support-for-MT7621-nand-flash.patch; }
           { name = "debug-gpiolib"; patch = ./0001-debug-gpiolib.patch; }
           { name = "ralink-gpio"; patch = ./802-GPIO-MIPS-ralink-add-gpio-driver-for-ralink-SoC.patch; }
+          { name = "firmware-loading-debug"; patch = ./0001-Add-more-debug-logging-for-firmware-loading.patch; }
+
 #          { name = "825-i2c-MIPS-adds-ralink-I2C-driver.patch"; patch = ./825-i2c-MIPS-adds-ralink-I2C-driver.patch; }
         ];
         structuredExtraConfig = pkgs.lib.mkForce ((targetSystem.structuredKernelExtraConfig or (_: { })) pkgs);
