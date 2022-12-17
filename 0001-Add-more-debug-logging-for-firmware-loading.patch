@@ -1,0 +1,109 @@
+From 4fa8770484a91468751388d82a7b9758b30bdb3f Mon Sep 17 00:00:00 2001
+From: Andreas Rammhold <andreas@rammhold.de>
+Date: Fri, 16 Dec 2022 21:44:12 +0100
+Subject: [PATCH] Add more debug logging for firmware loading
+
+---
+ drivers/net/wireless/mediatek/mt76/eeprom.c   |  6 +++--
+ .../wireless/mediatek/mt76/mt7915/eeprom.c    | 27 ++++++++++++++-----
+ 2 files changed, 25 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/net/wireless/mediatek/mt76/eeprom.c b/drivers/net/wireless/mediatek/mt76/eeprom.c
+index 9bc8758573fcc..40650b3c0ed7f 100644
+--- a/drivers/net/wireless/mediatek/mt76/eeprom.c
++++ b/drivers/net/wireless/mediatek/mt76/eeprom.c
+@@ -22,8 +22,10 @@ int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int offset, int len)
+ 	size_t retlen;
+ 	int ret;
+ 
+-	if (!np)
+-		return -ENOENT;
++	if (!np) {
++	 pr_info("mt76: !np");
++	 return -ENOENT;
++	}
+ 
+ 	data = of_get_property(np, "mediatek,eeprom-data", &size);
+ 	if (data) {
+diff --git a/drivers/net/wireless/mediatek/mt76/mt7915/eeprom.c b/drivers/net/wireless/mediatek/mt76/mt7915/eeprom.c
+index 4b1a9811646fd..e3e1b41dbb60b 100644
+--- a/drivers/net/wireless/mediatek/mt76/mt7915/eeprom.c
++++ b/drivers/net/wireless/mediatek/mt76/mt7915/eeprom.c
+@@ -12,16 +12,22 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
+ 	u32 val = eeprom[MT_EE_DO_PRE_CAL];
+ 	u32 offs;
+ 
+-	if (!dev->flash_mode)
++	if (!dev->flash_mode) {
++          	pr_info("mt7915: !dev->flash_mode");
+ 		return 0;
++	}
+ 
+-	if (val != (MT_EE_WIFI_CAL_DPD | MT_EE_WIFI_CAL_GROUP))
++	if (val != (MT_EE_WIFI_CAL_DPD | MT_EE_WIFI_CAL_GROUP)) {
++          	pr_info("mt7915: val != (MT_EE_WIFI_CAL_DPD | MT_EE_WIFI_CAL_GROUP)");
+ 		return 0;
++	}
+ 
+ 	val = MT_EE_CAL_GROUP_SIZE + MT_EE_CAL_DPD_SIZE;
+ 	dev->cal = devm_kzalloc(mdev->dev, val, GFP_KERNEL);
+-	if (!dev->cal)
++	if (!dev->cal) {
++          	pr_info("mt7915: !dev->cal");
+ 		return -ENOMEM;
++	}
+ 
+ 	offs = is_mt7915(&dev->mt76) ? MT_EE_PRECAL : MT_EE_PRECAL_V2;
+ 
+@@ -37,6 +43,7 @@ static int mt7915_check_eeprom(struct mt7915_dev *dev)
+ 	case 0x7915:
+ 	case 0x7916:
+ 	case 0x7986:
++	  pr_info("mt7915_check_eeprom: okay");
+ 		return 0;
+ 	default:
+ 		return -EINVAL;
+@@ -106,15 +113,19 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
+ 		return ret;
+ 
+ 	if (ret) {
++                pr_info("mt7915: flash_mode = true");
+ 		dev->flash_mode = true;
+ 	} else {
++                pr_info("mt7915: flash_mode = false");
+ 		u8 free_block_num;
+ 		u32 block_num, i;
+ 
+ 		mt7915_mcu_get_eeprom_free_block(dev, &free_block_num);
+ 		/* efuse info not enough */
+-		if (free_block_num >= 29)
++		if (free_block_num >= 29) {
++                        pr_info("mt7915: free_block_um >= 29");
+ 			return -EINVAL;
++		}
+ 
+ 		/* read eeprom data from efuse */
+ 		block_num = DIV_ROUND_UP(eeprom_size,
+@@ -242,13 +253,17 @@ int mt7915_eeprom_init(struct mt7915_dev *dev)
+ 
+ 		dev_warn(dev->mt76.dev, "eeprom load fail, use default bin\n");
+ 		ret = mt7915_eeprom_load_default(dev);
+-		if (ret)
++		if (ret) {
++                        pr_info("mt7915: eeprom_load_default succeeded?!?");
+ 			return ret;
++		}
+ 	}
+ 
+ 	ret = mt7915_eeprom_load_precal(dev);
+-	if (ret)
++	if (ret) {
++	        pr_info("eeprom_load_precal worked");
+ 		return ret;
++	}
+ 
+ 	mt7915_eeprom_parse_hw_cap(dev, &dev->phy);
+ 	memcpy(dev->mphy.macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
+-- 
+2.38.1
+
