@@ -1,4 +1,4 @@
-pkgs: with pkgs.lib.kernell; {
+pkgs: with pkgs.lib.kernel; {
     MODULES = yes;
   WIRELESS = yes;
   CFG80211 = yes;
