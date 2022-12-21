@@ -167,14 +167,12 @@ let
         useCommonConfig = false;
         autoModules = false;
         ignoreConfigErrors = false;
+        modDirVersion = "6.1.0";
         kernelPatches = [
           { name = "add-debug-logging"; patch = ./0001-Add-debug-logging.patch; }
           { name = "add-mtd-driver"; patch = ./0001-mtd-rawnand-add-driver-support-for-MT7621-nand-flash.patch; }
-          { name = "debug-gpiolib"; patch = ./0001-debug-gpiolib.patch; }
           { name = "ralink-gpio"; patch = ./802-GPIO-MIPS-ralink-add-gpio-driver-for-ralink-SoC.patch; }
-          { name = "firmware-loading-debug"; patch = ./0001-Add-more-debug-logging-for-firmware-loading.patch; }
-
-#          { name = "825-i2c-MIPS-adds-ralink-I2C-driver.patch"; patch = ./825-i2c-MIPS-adds-ralink-I2C-driver.patch; }
+          # { name = "825-i2c-MIPS-adds-ralink-I2C-driver.patch"; patch = ./825-i2c-MIPS-adds-ralink-I2C-driver.patch; }
         ];
         structuredExtraConfig = pkgs.lib.mkForce ((targetSystem.structuredKernelExtraConfig or (_: { })) pkgs);
       }).overrideAttrs (o: rec {
@@ -187,7 +185,7 @@ let
 
       dtb = pkgs.runCommandCC "cudy_x6.dtb" {
         nativeBuildInputs = [ pkgs.pkgsBuildHost.dtc ];
-        kernel = self.kernel.dev + "/lib/modules/${self.kernel.version}/source/";
+        kernel = self.kernel.dev + "/lib/modules/${self.kernel.modDirVersion}/source/";
         input = ./mt7621_cudy_x6.dts;
         outputs = [ "out" "yaml" "dts" ];
       } ''
