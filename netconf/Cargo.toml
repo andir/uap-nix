@@ -14,6 +14,11 @@ nc = "0.8"
 thiserror = "1"
 log = "0.4"
 simplelog = "0.12"
+serde_yaml = "0.9"
+serde = { version = "1", features = [ "derive" ] }
+tokio = { version = "1", features = [ "rt", "macros", "rt-multi-thread", "time" ] }
+rtnetlink = "0.11"
+futures = "0.3"
 
 [profile.release]
 opt-level = "z"

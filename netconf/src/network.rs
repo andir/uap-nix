@@ -1,12 +1,27 @@
 use crate::error::Error;
 use crate::task::{RestartStrategy, Task};
 use crate::util::AutoCloseFD;
+use futures::TryStreamExt;
+
 use log::{debug, error, info};
-use netlink_packet_core::{NetlinkDeserializable, NetlinkSerializable};
-use netlink_packet_route::{
-    constants::*, LinkMessage, NeighbourMessage, NetlinkHeader, NetlinkMessage, NetlinkPayload,
-    RtnlMessage,
-};
+
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+pub enum ConfigOperState {
+    Up,
+    Down,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NetworkConfiguration {
+    interfaces: std::collections::HashMap<String, NetworkInterfaceConfiguration>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NetworkInterfaceConfiguration {
+    oper_state: ConfigOperState,
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum NetlinkError {
@@ -26,6 +41,24 @@ pub enum NetlinkError {
 
     #[error("Missing field {field} from netlink response")]
     MissingNetlinkResponseField { field: &'static str },
+
+    #[error("Missing response for request")]
+    MissingResponse,
+
+    #[error("Request failed with errno {errno}: {message}")]
+    Errno {
+        errno: nc::Errno,
+        message: &'static str,
+    },
+}
+
+impl NetlinkError {
+    fn from_errno(errno: nc::Errno) -> Self {
+        Self::Errno {
+            errno,
+            message: nc::strerror(errno),
+        }
+    }
 }
 
 pub struct NetworkTask {
@@ -55,8 +88,8 @@ impl Task for NetworkTask {
 }
 
 impl NetworkTask {
-    pub fn new() -> Result<Self, Error> {
-        let child = crate::util::fork_and_exec(move || NetworkTaskImpl::new().run())?;
+    pub fn new(configuration: NetworkConfiguration) -> Result<Self, Error> {
+        let child = crate::util::fork_and_exec(move || NetworkTaskImpl::new(configuration).run())?;
 
         Ok(Self { child })
     }
@@ -71,208 +104,47 @@ struct NetworkInterface {
     physical_switch_name: Option<String>,
 }
 
-struct NetworkTaskImpl {}
-impl NetworkTaskImpl {
-    fn new() -> Self {
-        Self {}
+struct NetworkInterfaces(Vec<NetworkInterface>);
+
+impl NetworkInterfaces {
+    fn find_by_name<'a>(&'a self, name: impl AsRef<str>) -> Option<&'a NetworkInterface> {
+        let name = name.as_ref();
+        self.0.iter().find(|elem| elem.name == name)
     }
+}
 
-    fn get_interfaces(
-        socket: &mut netlink_sys::Socket,
-    ) -> Result<Vec<NetworkInterface>, NetlinkError> {
-        let mut lm = LinkMessage::default();
-        lm.header.interface_family = netlink_packet_route::AF_PACKET as u8;
-        let rm = RtnlMessage::GetLink(lm);
-        let request = NetlinkRequest::new(NetlinkMessage {
-            header: NetlinkHeader {
-                flags: NLM_F_DUMP | NLM_F_REQUEST,
-                ..Default::default()
-            },
-            payload: NetlinkPayload::from(rm),
-        });
-        let response = request.run(socket)?;
+struct NetworkTaskImpl {
+    configuration: NetworkConfiguration,
+}
 
-        // Filter for messages with content
-        let responses = response
-            .responses
-            .into_iter()
-            .filter_map(|r| match r.payload {
-                NetlinkPayload::InnerMessage(RtnlMessage::NewLink(m)) => Some(m),
-                NetlinkPayload::InnerMessage(m) => {
-                    error!("Get different kind of message for GetLink request: {:?}", m);
-                    None
-                }
-                _ => None,
-            });
-
-        let interfaces = responses
-            .into_iter()
-            .map(|r| {
-                use netlink_packet_route::nlas::link::Nla;
-                let id = r.header.index;
-                let name = r
-                    .nlas
-                    .iter()
-                    .find_map(|nla| match nla {
-                        Nla::IfName(name) => Some(name.clone()),
-                        _ => None,
-                    })
-                    .ok_or(NetlinkError::MissingNetlinkResponseField { field: "name" })?;
-
-                let state = r
-                    .nlas
-                    .iter()
-                    .find_map(|nla| match nla {
-                        Nla::OperState(state) => Some(*state),
-                        _ => None,
-                    })
-                    .ok_or(NetlinkError::MissingNetlinkResponseField {
-                        field: "oper_state",
-                    })?;
-
-                let physical_port_name = r.nlas.iter().find_map(|nla| match nla {
-                    Nla::PhysPortName(x) => Some(x.clone()),
-                    _ => None,
-                });
-
-                let physical_switch_name = r.nlas.iter().find_map(|nla| match nla {
-                    Nla::PhysPortName(x) => Some(x.clone()),
-                    _ => None,
-                });
-
-                Ok(NetworkInterface {
-                    id,
-                    name,
-                    oper_state: state,
-                    physical_port_name,
-                    physical_switch_name,
-                })
-            })
-            .collect::<Result<Vec<_>, NetlinkError>>()?;
-
-        Ok(interfaces)
+impl NetworkTaskImpl {
+    fn new(configuration: NetworkConfiguration) -> Self {
+        Self { configuration }
     }
 
     fn run(&mut self) {
-        let mut socket = match netlink_sys::Socket::new(netlink_sys::protocols::NETLINK_ROUTE) {
-            Ok(o) => o,
-            Err(e) => {
-                error!("Failed to create netlink socket: {:?}", e);
-                return;
-            }
-        };
-
-        match socket.connect(&netlink_sys::SocketAddr::new(0, 0)) {
-            Ok(_) => {}
-            Err(e) => {
-                error!("Failed to connect to netlink route socket: {:?}", e);
-                return;
-            }
-        };
-
-        loop {
-            let interfaces =
-                Self::get_interfaces(&mut socket).expect("Must be able to request interface data.");
-
-            info!("interfaces: {:?}", interfaces);
-
-            let request = NetlinkRequest::new(NetlinkMessage {
-                header: NetlinkHeader {
-                    flags: NLM_F_DUMP | NLM_F_REQUEST,
-                    ..Default::default()
-                },
-                payload: NetlinkPayload::from(RtnlMessage::GetNeighbour(
-                    NeighbourMessage::default(),
-                )),
-            });
-
-            match request.run(&mut socket) {
-                Err(e) => {
-                    error!("Failed to request data from netlink: {:?}", e);
-                    return;
-                }
-                Ok(response) => {
-                    for message in response.responses.iter() {
-                        debug!("Response: {:?}", message);
-                    }
-                }
-            };
-
-            std::thread::sleep(std::time::Duration::from_secs(90));
-        }
-    }
-}
-
-struct NetlinkRequest<I> {
-    request: NetlinkMessage<I>,
-}
-
-struct NetlinkResponse<I> {
-    responses: Vec<NetlinkMessage<I>>,
-}
-
-impl<I> NetlinkRequest<I>
-where
-    I: NetlinkSerializable + NetlinkDeserializable + std::fmt::Debug,
-{
-    pub fn new(request: NetlinkMessage<I>) -> Self {
-        Self { request }
+	let rt = tokio::runtime::Runtime::new().expect("failed to launch tokio runtime");
+	rt.block_on(self.run_async()).unwrap();
     }
 
-    pub fn run(
-        mut self,
-        socket: &mut netlink_sys::Socket,
-    ) -> Result<NetlinkResponse<I>, NetlinkError> {
-        self.request.finalize();
+    async fn run_async(&mut self) -> Result<(), std::io::Error> {
 
-        let mut send_buf = vec![0; self.request.header.length as usize];
-        self.request.serialize(&mut send_buf[..]);
-        socket
-            .send(&send_buf[..], 0)
-            .map_err(|error| NetlinkError::FailedToSendNetlinkRequest { error })?;
-        drop(send_buf);
+	let (_connection, handle, _rx) = rtnetlink::new_connection()?;
 
-        let mut responses = vec![];
-        let mut done = false;
-        loop {
-            if done {
-                break;
-            }
-            debug!("Waiting for netlink packets");
-            let (receive_buffer, _) = socket
-                .recv_from_full()
-                .map_err(|error| NetlinkError::FailedTOReadFromNetlinkSocket { error })?;
+	loop {
+	    error!("foo");
+	    // for each of our configured interfaces try to reach the desired state
+	    for (name, _iface) in self.configuration.interfaces.iter() {
+		let mut f = handle.link().get().match_name(name.to_string()).execute();
+		if let Some(link) = f.try_next().await.expect("Failed") {
+		    info!("Interface {} found: {:?}", name, link);
+		} else {
+		    info!("Interfaces {} not found", name);
+		}
+	    }
 
-            // deserialize all the potential messages
-            let mut offset = 0;
-            loop {
-                let bytes = &receive_buffer[offset..];
-                let msg: NetlinkMessage<I> = NetlinkMessage::deserialize(bytes)
-                    .map_err(|error| NetlinkError::FailedToDeserialize { error })?;
-
-                match msg.payload {
-                    NetlinkPayload::Overrun(_) => {
-                        return Err(NetlinkError::ResponseOverrun);
-                    }
-                    NetlinkPayload::Done => {
-                        debug!("done with netlink responses");
-                        done = true;
-                        break;
-                    }
-                    _ => {}
-                }
-
-                let msg_hdr_length = msg.header.length as usize;
-                offset += msg_hdr_length;
-
-                responses.push(msg);
-
-                if offset >= receive_buffer.len() || msg_hdr_length == 0 {
-                    break;
-                }
-            }
-        }
-
-        Ok(NetlinkResponse { responses })
+	    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+	}
+	Ok(())
     }
 }

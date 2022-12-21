@@ -118,6 +118,12 @@ let
           }) + "/bin";
           symlink = "/bin";
         }
+                    {
+                      object = pkgs.writeText "config.yml" (builtins.toJSON {
+                        network.interfaces.wan.oper_state = "Up";
+                      });
+                      symlink = "/config.yaml";
+                    }
           {
             object = pkgs.writeScript "init" ''
               #!/bin/sh

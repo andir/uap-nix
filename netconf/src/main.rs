@@ -1,3 +1,6 @@
+use serde::Deserialize;
+
+
 mod neighbours;
 
 mod early;
@@ -35,16 +38,30 @@ fn main() {
     }
 }
 
+#[derive(Debug, Deserialize)]
+struct Configuration {
+    network: network::NetworkConfiguration,
+}
+
 fn run() -> Result<(), error::Error> {
     info!("🛜 System init started 🛜");
 
     early::SystemInit::default().init()?;
 
-    // trying to spawn shell as child
+    info!("⌛ Parsing configuration ⌛");
+    if !util::stat("/config.yaml").is_ok() {
+	error!("Missing configuration file at /config.yaml. Can't proceed.");
+	return Ok(());
+    }
+
+    let fh = std::fs::File::open("/config.yaml").expect("Failed to read config.yaml");
+    let data = std::io::read_to_string(fh).unwrap();
+    let config : Configuration = serde_yaml::from_str(&data).unwrap();
+    
 
     info!("⌛ Starting tasks ⌛");
     let shell_task = task::ShellTask::new()?;
-    let network_task = network::NetworkTask::new()?;
+    let network_task = network::NetworkTask::new(config.network)?;
     let mut tasks: Vec<Box<dyn task::Task>> = vec![Box::new(shell_task), Box::new(network_task)];
 
     loop {
