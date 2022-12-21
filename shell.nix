@@ -23,8 +23,9 @@ let
     PATH=${pkgs.coreutils}/bin:${pkgs.nix}/bin:${pkgs.rsync}/bin/:${pkgs.openssh}/bin
     set -ex
     ${off}
-    nix-build -A mt7621.fit -o fit
-    scp $(readlink -f fit) root@172.20.24.1:/var/lib/atftpd/6/C0A80101.img
+    WORKDIR=${toString ./.}
+    nix-build $WORKDIR -A mt7621.fit -o $WORKDIR/fit
+    rsync -vzP $(readlink -f $WORKDIR/fit) root@172.20.24.1:/var/lib/atftpd/6/C0A80101.img
     sleep 3
     ${on}
   '';

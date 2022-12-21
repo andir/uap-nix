@@ -86,7 +86,7 @@ let
       });
 
       initramfs = pkgs.makeInitrd {
-        compressor = "cat";
+        compressor = "xz";
         makeUInitrd = false;
         contents = [{
           object = (pkgs.buildEnv {
@@ -94,14 +94,25 @@ let
             paths = [
               pkgs.busybox
               pkgs.hostapd
+              pkgs.iproute2
               #pkgs.dropbear
               pkgs.iputils
               pkgs.tcpdump
               pkgs.iw
+              self.netconf
               (lib.hiPrio (pkgs.writeScriptBin "reboot" ''
                 #!/bin/sh
                 echo b > /proc/sysrq-trigger
               ''))
+              (pkgs.writeScriptBin "mount-base" ''
+                mount -t devtmpfs none /dev
+                mount -t proc proc /proc
+                mount -t sysfs sys /sys
+                mkdir -p /run
+                mount -t tmpfs tmpfs /run
+                mount -t tmpfs tmpfs /tmp
+                mount -t debugfs debugfs /sys/kernel/debug
+              '')
             ];
             pathsToLink = [ "/bin" ];
           }) + "/bin";
@@ -111,23 +122,9 @@ let
             object = pkgs.writeScript "init" ''
               #!/bin/sh
               set -x
-              mount -t devtmpfs none /dev
-              mount -t proc proc /proc
-              mount -t sysfs sys /sys
-              mkdir -p /run
-              mount -t tmpfs tmpfs /run
-              mount -t tmpfs tmpfs /tmp
-              mount -t debugfs debugfs /sys/kernel/debug
+              RUST_BACKTRACE=full exec netconf
 
-              # init some random numbers
-              echo "${builtins.unsafeDiscardStringContext self.kernel.outPath}" > /dev/random
-
-              #mkdir -p /lib/firmware/mediatek
-              #cp -rv /lib/firmware-static/mediatek/* /lib/firmware/mediatek/.
-              #dd if=/dev/mtd2 of=/lib/firmware/mediatek/mt7915_eeprom_dbdc.bin
-
-              ip l set wan up
-              #${self.cal-wifi}
+              #ip l set wan up
               exec sh
             '';
             symlink = "/init";
@@ -160,12 +157,6 @@ let
             symlink = "/etc/hostapd.conf";
           }];
       };
-
-      cal-wifi = pkgs.writeScript "cal-wifi" ''
-        #!/bin/sh
-        mtd=$(grep '"firmware"' /proc/mtd | cut -d : -f 1)
-        dd if=/dev/$mtd of=/lib/firmware/ath10k/cal-pci-0000:00:00.0.bin iflag=skip_bytes,fullblock bs=$((0x844)) skip=$((0x5000)) count=1
-      '';
 
       kernelSrc =
         pkgs.linux_latest.src;
@@ -292,12 +283,11 @@ let
       netconf = pkgs.rustPlatform.buildRustPackage {
         name = "netconf";
         src = ./netconf;
+        nativeBuildInputs = [ pkgs.pkgsBuildHost.glibc ]; # for getconf to get syscalls
         cargoLock = {
           lockFile = ./netconf/Cargo.lock;
         };
       };
-
-
     });
 
   pkgs = pkgsForCrossSystem crossSystems.ath79;

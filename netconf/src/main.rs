@@ -1,133 +1,100 @@
-// SPDX-License-Identifier: MIT
+mod neighbours;
 
-use std::{convert::TryFrom, net::IpAddr, string::ToString};
+mod early;
+mod epoll;
+mod error;
+mod network;
+mod task;
+mod util;
 
-use netlink_packet_route::{
-    constants::*,
-    nlas::neighbour::Nla,
-    NeighbourMessage,
-    NetlinkHeader,
-    NetlinkMessage,
-    NetlinkPayload,
-    RtnlMessage,
-};
-use netlink_sys::{protocols::NETLINK_ROUTE, Socket, SocketAddr};
+use util::{reboot, sleep_secs, AutoCloseFD, FD};
+
+use log::{debug, error, info};
+
+fn init_logging() {
+    simplelog::CombinedLogger::init(vec![simplelog::TermLogger::new(
+        log::LevelFilter::Debug,
+        simplelog::Config::default(),
+        simplelog::TerminalMode::Mixed,
+        simplelog::ColorChoice::Auto,
+    )])
+    .expect("Must be able to initialize the logging");
+}
 
 fn main() {
-    let mut socket = Socket::new(NETLINK_ROUTE).unwrap();
-    let _port_number = socket.bind_auto().unwrap().port_number();
-    socket.connect(&SocketAddr::new(0, 0)).unwrap();
+    let pid = util::getpid();
+    init_logging();
+    if let Err(e) = run() {
+        error!("System failed: {:?}", e);
+    }
 
-    let mut req = NetlinkMessage {
-        header: NetlinkHeader {
-            flags: NLM_F_DUMP | NLM_F_REQUEST,
-            ..Default::default()
-        },
-        payload: NetlinkPayload::from(RtnlMessage::GetNeighbour(NeighbourMessage::default())),
-    };
-    // IMPORTANT: call `finalize()` to automatically set the
-    // `message_type` and `length` fields to the appropriate values in
-    // the netlink header.
-    req.finalize();
+    if pid == 1 {
+        error!("No more work to watch out for. Rebooting in 15s");
+        sleep_secs(15);
+        reboot();
+    }
+}
 
-    let mut buf = vec![0; req.header.length as usize];
-    req.serialize(&mut buf[..]);
+fn run() -> Result<(), error::Error> {
+    info!("🛜 System init started 🛜");
 
-    println!(">>> {:?}", req);
-    socket.send(&buf[..], 0).unwrap();
+    early::SystemInit::default().init()?;
 
-    let mut receive_buffer = vec![0; 4096];
-    let mut offset = 0;
+    // trying to spawn shell as child
 
-    'outer: loop {
-        let size = socket.recv(&mut &mut receive_buffer[..], 0).unwrap();
+    info!("⌛ Starting tasks ⌛");
+    let shell_task = task::ShellTask::new()?;
+    let network_task = network::NetworkTask::new()?;
+    let mut tasks: Vec<Box<dyn task::Task>> = vec![Box::new(shell_task), Box::new(network_task)];
 
-        loop {
-            let bytes = &receive_buffer[offset..];
-            // Parse the message
-            let msg: NetlinkMessage<RtnlMessage> = NetlinkMessage::deserialize(bytes).unwrap();
+    loop {
+        let mut poll_fds = tasks
+            .iter()
+            .filter_map(|task| task.poll_fd())
+            .map(|(fd, flags)| {
+                let mut pollfd = nc::pollfd_t::default();
+                pollfd.fd = fd.get();
+                pollfd.events = flags;
+                pollfd
+            })
+            .collect::<Vec<_>>();
 
-            match msg.payload {
-                NetlinkPayload::Done => break 'outer,
-                NetlinkPayload::InnerMessage(RtnlMessage::NewNeighbour(entry)) => {
-                    let address_family = entry.header.family as u16;
-                    if address_family == AF_INET || address_family == AF_INET6 {
-                        print_entry(entry);
+        unsafe { nc::poll(&mut poll_fds, 120000) }.unwrap();
+        let mut new_tasks = vec![];
+        for mut task in tasks {
+            if !task.is_alive()? {
+                info!("Task {:?} died, checking restart strategy", task);
+                match task.restart_strategy() {
+                    task::RestartStrategy::Never => {
+                        info!("Task {:?} isn't configured to restart.", task);
+                    }
+                    task::RestartStrategy::Reboot => {
+                        error!("Task {:?} requires a device reboot. Rebooting.", task);
+                        return Err(error::Error::TaskDied);
+                    }
+                    task::RestartStrategy::RestartProcess => {
+                        info!("Task {:?} is configured fo restart, restarting it", task);
+                        match task.restart() {
+                            Ok(_) => new_tasks.push(task),
+			    Err(e) => {
+				error!("Failed to restart task {:?}, giving up on it: {:?}", task, e);
+			    }
+			}
                     }
                 }
-                NetlinkPayload::Error(err) => {
-                    eprintln!("Received a netlink error message: {:?}", err);
-                    return;
-                }
-                _ => {}
-            }
-
-            offset += msg.header.length as usize;
-            if offset == size || msg.header.length == 0 {
-                offset = 0;
-                break;
+            } else {
+                new_tasks.push(task);
             }
         }
+
+        tasks = new_tasks;
+
+        if tasks.len() > 0 {
+            debug!("There are still {} children alive, continuing", tasks.len());
+            continue;
+        }
+        debug!("all children must have died 😿");
+
+        return Err(error::Error::AllChildrenDied);
     }
-}
-
-fn format_ip(buf: &[u8]) -> String {
-    if let Ok(bytes) = <&[u8; 4]>::try_from(buf) {
-        IpAddr::from(*bytes).to_string()
-    } else if let Ok(bytes) = <&[u8; 16]>::try_from(buf) {
-        IpAddr::from(*bytes).to_string()
-    } else {
-        panic!("Invalid IP Address");
-    }
-}
-
-fn format_mac(buf: &[u8]) -> String {
-    assert_eq!(buf.len(), 6);
-    format!(
-        "{:<02x}:{:<02x}:{:<02x}:{:<02x}:{:<02x}:{:<02x}",
-        buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]
-    )
-}
-
-fn state_str(value: u16) -> &'static str {
-    match value {
-        NUD_INCOMPLETE => "INCOMPLETE",
-        NUD_REACHABLE => "REACHABLE",
-        NUD_STALE => "STALE",
-        NUD_DELAY => "DELAY",
-        NUD_PROBE => "PROBE",
-        NUD_FAILED => "FAILED",
-        NUD_NOARP => "NOARP",
-        NUD_PERMANENT => "PERMANENT",
-        NUD_NONE => "NONE",
-        _ => "UNKNOWN",
-    }
-}
-
-fn print_entry(entry: NeighbourMessage) {
-    let state = state_str(entry.header.state);
-    let dest = entry
-        .nlas
-        .iter()
-        .find_map(|nla| {
-            if let Nla::Destination(addr) = nla {
-                Some(format_ip(&addr[..]))
-            } else {
-                None
-            }
-        })
-        .unwrap();
-    let lladdr = entry
-        .nlas
-        .iter()
-        .find_map(|nla| {
-            if let Nla::LinkLocalAddress(addr) = nla {
-                Some(format_mac(&addr[..]))
-            } else {
-                None
-            }
-        })
-        .unwrap();
-
-    println!("{:<30} {:<20} ({})", dest, lladdr, state);
 }
