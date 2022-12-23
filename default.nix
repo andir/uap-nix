@@ -34,16 +34,28 @@ let
     inherit (targetSystem) crossSystem;
     config.allowUnsupportedSystem = true;
     overlays = [
-      (self: super:
-        let inherit (self) lib; in
-        {
-          lib = super.lib // {
-            elementsInDir = ignores: dir: lib.mapAttrsToList (name: type: { inherit type name; path = dir + "/${name}"; })
-              (lib.filterAttrs (name: value: (builtins.elem name ignores) != true)
-                (builtins.readDir dir));
-            filesInDir = ignores: dir: map ({ path, ... }: path) (super.lib.filter (entry: entry.type == "regular") (lib.elementsInDir ignores dir));
+      (self: super: {
+        netconf = self.rustPlatform.buildRustPackage {
+          name = "netconf";
+          src = ./netconf;
+          nativeBuildInputs = [ self.pkgsBuildHost.glibc ]; # for getconf to get syscalls
+          cargoLock = {
+            lockFile = ./netconf/Cargo.lock;
           };
-        })
+        };
+        netconf_schema = self.runCommandNoCC "netconf_schema.json "
+          {
+            nativeBuildInputs = [
+              (self.pkgsBuildHost.netconf.overrideAttrs (_: {
+                cargoBuildFeatures = [ "schema-generator" ];
+              }))
+            ];
+          } "netconf generate-schema > $out";
+        verifyNetconfConfig = file: self.runCommandNoCC "config.yml"
+          { nativeBuildInputs = [ self.python3Packages.jsonschema ]; inherit file; } ''
+          jsonschema ${self.netconf_schema} < $file && cp $file $out
+        '';
+      })
     ] ++ (targetSystem.overlays or [ ]);
   };
 
@@ -99,7 +111,7 @@ let
               pkgs.iputils
               pkgs.tcpdump
               pkgs.iw
-              self.netconf
+              pkgs.netconf
               (lib.hiPrio (pkgs.writeScriptBin "reboot" ''
                 #!/bin/sh
                 echo b > /proc/sysrq-trigger
@@ -118,17 +130,32 @@ let
           }) + "/bin";
           symlink = "/bin";
         }
-                    {
-                      object = pkgs.writeText "config.yml" (builtins.toJSON {
-                        network.interfaces.wan.oper_state = "Up";
-                      });
-                      symlink = "/config.yaml";
-                    }
+          {
+            object = pkgs.pkgsBuildHost.verifyNetconfConfig (pkgs.writeText "config.yml" (builtins.toJSON {
+              network.interfaces = {
+                wan = {
+                  oper_state = "Up";
+                  accept_ra = false;
+                };
+                lan = {
+                  oper_state = "Up";
+                  link_config.Bridge = {
+                    vlan_filtering = true;
+                  };
+                };
+                lab0 = {
+                  oper_state = "Up";
+                  link_config.Bridge = {};
+                };
+              };
+            }));
+            symlink = "/config.yaml";
+          }
           {
             object = pkgs.writeScript "init" ''
               #!/bin/sh
               set -x
-              RUST_BACKTRACE=full exec netconf
+                RUST_BACKTRACE=full exec netconf --config-file /config.yaml init
 
               #ip l set wan up
               exec sh
@@ -175,7 +202,8 @@ let
         ignoreConfigErrors = false;
         modDirVersion = "6.1.0";
         kernelPatches = [
-          { name = "add-debug-logging"; patch = ./0001-Add-debug-logging.patch; }
+          { name = "of-fdt-fix-memblock"; patch = ./0001-of-fdt-return-1-if-early_init_dt_scan_memory-found-m.patch; }
+          #{ name = "add-debug-logging"; patch = ./0001-Add-debug-logging.patch; }
           { name = "add-mtd-driver"; patch = ./0001-mtd-rawnand-add-driver-support-for-MT7621-nand-flash.patch; }
           { name = "ralink-gpio"; patch = ./802-GPIO-MIPS-ralink-add-gpio-driver-for-ralink-SoC.patch; }
           # { name = "825-i2c-MIPS-adds-ralink-I2C-driver.patch"; patch = ./825-i2c-MIPS-adds-ralink-I2C-driver.patch; }
@@ -186,15 +214,16 @@ let
           cp arch/mips/boot/vmlinux.bin $out
           cp arch/mips/boot/vmlinux.bin.gz $out
           cp arch/mips/boot/uImage $out
-        '' + (lib.replaceStrings ["find . -type f -perm -u=w -print0 | xargs -0 -r rm"] [""] o.postInstall);
+        '' + (lib.replaceStrings [ "find . -type f -perm -u=w -print0 | xargs -0 -r rm" ] [ "" ] o.postInstall);
       });
 
-      dtb = pkgs.runCommandCC "cudy_x6.dtb" {
-        nativeBuildInputs = [ pkgs.pkgsBuildHost.dtc ];
-        kernel = self.kernel.dev + "/lib/modules/${self.kernel.modDirVersion}/source/";
-        input = ./mt7621_cudy_x6.dts;
-        outputs = [ "out" "yaml" "dts" ];
-      } ''
+      dtb = pkgs.runCommandCC "cudy_x6.dtb"
+        {
+          nativeBuildInputs = [ pkgs.pkgsBuildHost.dtc ];
+          kernel = self.kernel.dev + "/lib/modules/${self.kernel.modDirVersion}/source/";
+          input = ./mt7621_cudy_x6.dts;
+          outputs = [ "out" "yaml" "dts" ];
+        } ''
         echo testing
         test -e $kernel/arch/mips/boot/dts/ralink/mt7621.dtsi || echo "mt7621.dtsi not found"
         $CC -E -nostdinc -x assembler-with-cpp -I $kernel/include -I $kernel/arch/mips/boot/dts/ralink $kernel/arch/mips/boot/dts/ralink/mt7621.dtsi -o test > /dev/null || exit 123
@@ -283,15 +312,6 @@ let
         ls -lh $(readlink -f initramfs.img kernel.img)
         set +x
       '';
-
-      netconf = pkgs.rustPlatform.buildRustPackage {
-        name = "netconf";
-        src = ./netconf;
-        nativeBuildInputs = [ pkgs.pkgsBuildHost.glibc ]; # for getconf to get syscalls
-        cargoLock = {
-          lockFile = ./netconf/Cargo.lock;
-        };
-      };
     });
 
   pkgs = pkgsForCrossSystem crossSystems.ath79;
@@ -303,9 +323,7 @@ let
     in
     {
       inherit (targets)
-        openwrt-src
         initramfs
-        cal-wifi
         kernelSrc
         kernel
         dtb

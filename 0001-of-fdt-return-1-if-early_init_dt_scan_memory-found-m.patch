@@ -1,0 +1,60 @@
+From 91dcb622ce2bfabdc8614688a87f78de61b7e19d Mon Sep 17 00:00:00 2001
+From: Andreas Rammhold <andreas@rammhold.de>
+Date: Thu, 22 Dec 2022 19:17:24 +0100
+Subject: [PATCH] of/fdt: return 1 if early_init_dt_scan_memory found memory
+
+If memory has been found the function now returns 1. If it hasn't
+found any memory it will return 0, allowing other memory detection
+mechanisms to carry on.
+---
+ arch/mips/ralink/of.c | 2 +-
+ drivers/of/fdt.c      | 6 ++++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/arch/mips/ralink/of.c b/arch/mips/ralink/of.c
+index ea8072acf8d9..6873b0263421 100644
+--- a/arch/mips/ralink/of.c
++++ b/arch/mips/ralink/of.c
+@@ -63,7 +63,7 @@ void __init plat_mem_setup(void)
+ 	dtb = get_fdt();
+ 	__dt_setup_arch(dtb);
+ 
+-	if (!early_init_dt_scan_memory())
++	if (early_init_dt_scan_memory())
+ 		return;
+ 
+ 	if (soc_info.mem_detect)
+diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
+index b2272bccf85c..bf72560c4523 100644
+--- a/drivers/of/fdt.c
++++ b/drivers/of/fdt.c
+@@ -1099,7 +1099,7 @@ u64 __init dt_mem_next_cell(int s, const __be32 **cellp)
+  */
+ int __init early_init_dt_scan_memory(void)
+ {
+-	int node;
++	int node, found_memory = 0;
+ 	const void *fdt = initial_boot_params;
+ 
+ 	fdt_for_each_subnode(node, fdt, 0) {
+@@ -1139,6 +1139,8 @@ int __init early_init_dt_scan_memory(void)
+ 
+ 			early_init_dt_add_memory_arch(base, size);
+ 
++			found_memory |= 1;
++
+ 			if (!hotpluggable)
+ 				continue;
+ 
+@@ -1147,7 +1149,7 @@ int __init early_init_dt_scan_memory(void)
+ 					base, base + size);
+ 		}
+ 	}
+-	return 0;
++	return found_memory;
+ }
+ 
+ int __init early_init_dt_scan_chosen(char *cmdline)
+-- 
+2.38.1
+

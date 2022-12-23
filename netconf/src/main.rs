@@ -1,5 +1,6 @@
 use serde::Deserialize;
 
+use clap::Parser;
 
 mod neighbours;
 
@@ -14,6 +15,25 @@ use util::{reboot, sleep_secs, AutoCloseFD, FD};
 
 use log::{debug, error, info};
 
+#[derive(Parser, Clone, Copy)]
+pub enum Command {
+    Init,
+    VerifyConfig,
+    Network,
+
+    #[cfg(feature="schema-generator")]
+    GenerateSchema,
+}
+
+#[derive(Parser)]
+pub struct Arguments  {
+    #[clap(short, long, default_value="/config.json")]
+    config_file: String,
+
+    #[clap(subcommand)]
+    command: Command,
+}
+
 fn init_logging() {
     simplelog::CombinedLogger::init(vec![simplelog::TermLogger::new(
         log::LevelFilter::Debug,
@@ -24,45 +44,75 @@ fn init_logging() {
     .expect("Must be able to initialize the logging");
 }
 
+fn load_config(config_file: &str) -> Result<Configuration, serde_json::Error> {
+    info!("⌛ Parsing configuration ⌛");
+    if !util::stat(config_file).is_ok() {
+        error!("Missing configuration file at {}. Can't proceed.", config_file);
+    }
+
+    let fh = std::fs::File::open(config_file).expect("Failed to read config");
+    serde_json::from_reader(&fh)
+}
+
 fn main() {
     let pid = util::getpid();
     init_logging();
-    if let Err(e) = run() {
-        error!("System failed: {:?}", e);
-    }
 
-    if pid == 1 {
-        error!("No more work to watch out for. Rebooting in 15s");
-        sleep_secs(15);
-        reboot();
-    }
+    let args = Arguments::parse();
+    match args.command {
+        Command::Init => {
+            if let Err(e) = run(&args.config_file) {
+                error!("System failed: {:?}", e);
+            }
+
+            if pid == 1 {
+                error!("No more work to watch out for. Rebooting in 15s");
+                sleep_secs(15);
+                reboot();
+            }
+        },
+	Command::Network => {
+
+	},
+	Command::VerifyConfig => {
+	    load_config(&args.config_file).unwrap();
+	}
+	#[cfg(feature="schema-generator")]
+	Command::GenerateSchema => {
+	    let schema = schemars::schema_for!(Configuration);
+	    println!("{}", serde_json::to_string_pretty(&schema).unwrap());
+	}
+    };
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature="schema-generator", derive(schemars::JsonSchema))]
 struct Configuration {
     network: network::NetworkConfiguration,
 }
 
-fn run() -> Result<(), error::Error> {
+fn run(config_file: &str) -> Result<(), error::Error> {
     info!("🛜 System init started 🛜");
 
     early::SystemInit::default().init()?;
 
-    info!("⌛ Parsing configuration ⌛");
-    if !util::stat("/config.yaml").is_ok() {
-	error!("Missing configuration file at /config.yaml. Can't proceed.");
-	return Ok(());
-    }
-
-    let fh = std::fs::File::open("/config.yaml").expect("Failed to read config.yaml");
-    let data = std::io::read_to_string(fh).unwrap();
-    let config : Configuration = serde_yaml::from_str(&data).unwrap();
-    
 
     info!("⌛ Starting tasks ⌛");
     let shell_task = task::ShellTask::new()?;
-    let network_task = network::NetworkTask::new(config.network)?;
-    let mut tasks: Vec<Box<dyn task::Task>> = vec![Box::new(shell_task), Box::new(network_task)];
+    let mut tasks: Vec<Box<dyn task::Task>> = vec![Box::new(shell_task)];
+
+    let config = match load_config(config_file) {
+        Ok(v) => Some(v),
+        Err(e) => {
+            error!("Failed to parse configuration file: {:?}", e);
+            None
+        }
+    };
+
+    if let Some(config) = config {
+        let network_task = network::NetworkTask::new(config.network)?;
+        tasks.push(Box::new(network_task));
+    }
 
     loop {
         let mut poll_fds = tasks
@@ -93,10 +143,13 @@ fn run() -> Result<(), error::Error> {
                         info!("Task {:?} is configured fo restart, restarting it", task);
                         match task.restart() {
                             Ok(_) => new_tasks.push(task),
-			    Err(e) => {
-				error!("Failed to restart task {:?}, giving up on it: {:?}", task, e);
-			    }
-			}
+                            Err(e) => {
+                                error!(
+                                    "Failed to restart task {:?}, giving up on it: {:?}",
+                                    task, e
+                                );
+                            }
+                        }
                     }
                 }
             } else {

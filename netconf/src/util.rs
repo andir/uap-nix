@@ -2,6 +2,15 @@ use crate::error::Error;
 
 use log::{debug, error, info};
 
+impl Default for Child {
+    fn default() -> Child {
+        Child {
+            fd: AutoCloseFD { fd: -1 },
+            pid: -1,
+        }
+    }
+}
+
 pub struct Child {
     pub fd: AutoCloseFD,
     pub pid: i32,
@@ -148,16 +157,13 @@ pub fn is_dir(mode: nc::mode_t) -> bool {
 
 pub fn create_missing_dir(dir: &str) -> Result<(), Error> {
     match stat(dir) {
-        Err(Error::Errno {
-            errno,
-            message,
-        })
+        Err(Error::Errno { errno, message })
         | Err(Error::ErrnoWithMessage { errno, message, .. }) => {
-            unsafe { nc::mkdir(dir, 0o755) }.map_err(|error| Error::FailedToCreateDirectory {
+            unsafe { nc::mkdir(dir, 0o755) }.map_err(|errno| Error::FailedToCreateDirectory {
                 message: "Tried to create missing directory",
                 directory: dir.to_string(),
                 errno,
-                error_message: message,
+                error_message: nc::strerror(errno),
             })?
         }
         Err(e) => Err(e)?,
