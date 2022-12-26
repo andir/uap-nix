@@ -37,7 +37,7 @@ in
     cargoLock = {
       lockFile = ./Cargo.lock;
     };
-    cargoBuildFlags = [ "-p initd -p netconf" ];
+    cargoBuildFlags = [ "-p initd -p netconf -p wirelessd" ];
   };
   configTool = self.userspace.overrideAttrs (_: {
     cargoBuildFlags = [ "-p config-tool" ];

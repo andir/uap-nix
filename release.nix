@@ -1,4 +1,5 @@
-{ nixpkgs }:
+let sources = import ./npins; in
+{ nixpkgs ? sources.nixpkgs }:
 let
   targets = import ./default.nix {
    system = "x86_64-linux";

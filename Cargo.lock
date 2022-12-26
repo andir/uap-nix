@@ -219,6 +219,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "genetlink"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9431aa0084f7525d009197ec4ab32381ed3881a9c44f90d3ab8591a33fbdfa78"
+dependencies = [
+ "futures",
+ "netlink-packet-core",
+ "netlink-packet-generic",
+ "netlink-packet-utils",
+ "netlink-proto",
+ "thiserror",
+]
+
+[[package]]
 name = "heck"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -345,6 +359,19 @@ dependencies = [
  "anyhow",
  "byteorder",
  "libc",
+ "netlink-packet-utils",
+]
+
+[[package]]
+name = "netlink-packet-generic"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94a5d5ed7a2e8303cde48c4c75b9cbe004d1df98bdd0183aea8f4db7f010cb00"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "libc",
+ "netlink-packet-core",
  "netlink-packet-utils",
 ]
 
@@ -844,3 +871,32 @@ name = "windows_x86_64_msvc"
 version = "0.42.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f40009d85759725a34da6d89a94e63d7bdc50a862acf0dbc7c8e488f1edcb6f5"
+
+[[package]]
+name = "wirelessd"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "tokio",
+ "wl-nl80211",
+]
+
+[[package]]
+name = "wl-nl80211"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c20e82714e343450e6966703c7ba4a31132e6907adeb69694cfcd612a01d0e2a"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "futures",
+ "genetlink",
+ "log",
+ "netlink-packet-core",
+ "netlink-packet-generic",
+ "netlink-packet-utils",
+ "netlink-proto",
+ "netlink-sys",
+ "thiserror",
+ "tokio",
+]

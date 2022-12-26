@@ -309,10 +309,10 @@ let
         boot
         uboot
         uboot-mtd
-        netconf
         fit
         ;
-      inherit pkgs;
+        inherit pkgs;
+        inherit (pkgs) userspace configTool;
     };
 in
 builtins.mapAttrs (name: mkDevice) crossSystems
