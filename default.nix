@@ -34,28 +34,7 @@ let
     inherit (targetSystem) crossSystem;
     config.allowUnsupportedSystem = true;
     overlays = [
-      (self: super: {
-        netconf = self.rustPlatform.buildRustPackage {
-          name = "netconf";
-          src = ./netconf;
-          nativeBuildInputs = [ self.pkgsBuildHost.glibc ]; # for getconf to get syscalls
-          cargoLock = {
-            lockFile = ./netconf/Cargo.lock;
-          };
-        };
-        netconf_schema = self.runCommandNoCC "netconf_schema.json "
-          {
-            nativeBuildInputs = [
-              (self.pkgsBuildHost.netconf.overrideAttrs (_: {
-                cargoBuildFeatures = [ "schema-generator" ];
-              }))
-            ];
-          } "netconf generate-schema > $out";
-        verifyNetconfConfig = file: self.runCommandNoCC "config.yml"
-          { nativeBuildInputs = [ self.python3Packages.jsonschema ]; inherit file; } ''
-          jsonschema ${self.netconf_schema} < $file && cp $file $out
-        '';
-      })
+      (import ./userspace.nix)
     ] ++ (targetSystem.overlays or [ ]);
   };
 
@@ -111,7 +90,7 @@ let
               pkgs.iputils
               pkgs.tcpdump
               pkgs.iw
-              pkgs.netconf
+              pkgs.userspace
               (lib.hiPrio (pkgs.writeScriptBin "reboot" ''
                 #!/bin/sh
                 echo b > /proc/sysrq-trigger
@@ -131,7 +110,7 @@ let
           symlink = "/bin";
         }
           {
-            object = pkgs.pkgsBuildHost.verifyNetconfConfig (pkgs.writeText "config.yml" (builtins.toJSON {
+            object = pkgs.pkgsBuildHost.verifyNetconfConfig (pkgs.writeText "config.json" (builtins.toJSON {
               network.interfaces = {
                 wan = {
                   oper_state = "Up";
@@ -149,14 +128,14 @@ let
                 };
               };
             }));
-            symlink = "/config.yaml";
+            symlink = "/config.json";
           }
           {
             object = pkgs.writeScript "init" ''
               #!/bin/sh
               set -x
-                RUST_BACKTRACE=full exec netconf --config-file /config.yaml init
-
+              ls -la /bin/
+              RUST_BACKTRACE=full exec initd init
               #ip l set wan up
               exec sh
             '';

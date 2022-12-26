@@ -16,25 +16,36 @@ pub struct Child {
     pub pid: i32,
 }
 
+pub enum ProcessStatus {
+    Alive,
+    Dead { status: i32 },
+}
+
+impl ProcessStatus {
+    pub fn is_alive(&self) -> bool {
+	matches!(self, ProcessStatus::Alive)
+    }
+}
+
 impl Child {
-    pub fn is_alive(&self) -> Result<bool, Error> {
+    pub fn is_alive(&self) -> Result<ProcessStatus, Error> {
         let mut status = 0;
         let mut usage = nc::rusage_t::default();
         match unsafe { nc::wait4(self.pid, &mut status, nc::WNOHANG, &mut usage) } {
             Ok(0) => {
                 debug!("PID {} is still alive and kicking", self.pid);
-                return Ok(true);
+                return Ok(ProcessStatus::Alive);
             }
             Ok(n) if n == self.pid => {
                 info!("PID {} died.", self.pid);
-                return Ok(false);
+                return Ok(ProcessStatus::Dead { status });
             }
             Ok(n) => {
                 error!(
                     "PID {} returned {} not sure what this means?!? Considering the process dead.",
                     self.pid, n
                 );
-                return Ok(false);
+                return Ok(ProcessStatus::Dead { status });
             }
             Err(e) => {
                 return Err(Error::from_errno_with_message(
@@ -81,6 +92,12 @@ pub fn fork_and_exec(f: impl FnOnce() -> ()) -> Result<Child, Error> {
 pub fn resolve_symlink(path: &str) -> Result<String, Error> {
     const BUFFER_SIZE: usize = 512;
     let mut output = [0u8; BUFFER_SIZE];
+
+    let s = stat(path)?;
+    if s.st_mode & nc::S_IFMT !=  nc::S_IFLNK {
+	return Ok(path.to_string());
+    }
+    
     let _ = unsafe {
         nc::readlink(path, &mut output, BUFFER_SIZE)
             .map_err(|errno| Error::from_errno_with_message(errno, "Failed to readlink"))

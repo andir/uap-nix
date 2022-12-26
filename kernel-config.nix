@@ -11,6 +11,9 @@ pkgs: with pkgs.lib.kernel; {
   NET_SCHED = yes;
   NET_SCH_FQ_CODEL = yes;
   NET_SCH_DEFAULT = yes;
+  VLAN_8021Q = yes;
+  BRIDGE_VLAN_FILTERING = yes;
+
 
   #MODULE_SIG = yes;
   #MODULE_SIG_FORMAT = yes;

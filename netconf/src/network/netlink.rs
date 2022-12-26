@@ -1,8 +1,7 @@
 use rtnetlink::packet::nlas::link::Inet6DevConfBuffer;
-use rtnetlink::packet::nlas::NlaBuffer;
 use rtnetlink::{
     packet::{
-        nlas::link::{AfSpecInet, Inet6, Inet6DevConf, InfoBridge, Nla, State},
+        nlas::link::{AfSpecInet, Inet6, Inet6DevConf, Info, InfoBridge, InfoData, Nla, State},
         LinkMessage,
     },
     LinkAddRequest,
@@ -58,32 +57,64 @@ impl LinkExt for LinkMessage {
             .map(Some)
             .unwrap_or(None)?;
 
-	use rtnetlink::packet::traits::Parseable;
+        use rtnetlink::packet::traits::Parseable;
         let inet6devconf = Inet6DevConf::parse(&buffer).map(Some).unwrap_or(None)?;
-	Some(inet6devconf.accept_ra > 0)
+        Some(inet6devconf.accept_ra > 0)
     }
 }
 
 pub trait LinkAddExt: Sized {
-    fn vlan_filtering(self, vlan_filtering: bool) -> Result<Self, rtnetlink::packet::DecodeError>;
+    fn vlan_filtering(self, vlan_filtering: bool) -> Self;
+}
+
+fn info_nlas(request: &mut LinkAddRequest) -> Option<&mut Vec<Info>> {
+    request
+        .message_mut()
+        .nlas
+        .iter_mut()
+        .find_map(|nla| match nla {
+            Nla::Info(i) => Some(i),
+            _ => None,
+        })
+}
+
+fn info_data_bridge(infos: &mut Vec<Info>) -> Option<&mut Vec<InfoBridge>> {
+    infos.iter_mut().find_map(|info| match info {
+        Info::Data(InfoData::Bridge(info_bridge)) => Some(info_bridge),
+        _ => None,
+    })
+}
+
+fn info_bridge_vlan_filtering(info: &mut Vec<InfoBridge>) -> Option<&mut InfoBridge> {
+    info.iter_mut().find_map(|i| match i {
+        x @ InfoBridge::VlanFiltering(_) => Some(x),
+        _ => None,
+    })
 }
 
 impl LinkAddExt for LinkAddRequest {
     fn vlan_filtering(
         mut self,
         vlan_filtering: bool,
-    ) -> Result<Self, rtnetlink::packet::DecodeError> {
-        use rtnetlink::packet::nlas::DefaultNla;
-        use rtnetlink::packet::traits::{Emitable, Parseable};
+    ) -> Self {
+        let x = InfoBridge::VlanFiltering(if vlan_filtering { 1 } else { 0 });
+        if let Some(infos) = info_nlas(&mut self) {
+            if let Some(info) = info_data_bridge(infos) {
+                // search for an already existing vlan option
+                if let Some(v) = info_bridge_vlan_filtering(info) {
+                    *v = x;
+                } else {
+                    info.push(x);
+                }
+            } else {
+                infos.push(Info::Data(InfoData::Bridge(vec![x])));
+            }
+        } else {
+            self.message_mut()
+                .nlas
+                .push(Nla::Info(vec![Info::Data(InfoData::Bridge(vec![x]))]))
+	}
 
-        let mut buffer = vec![0u8; 32];
-        let x = InfoBridge::VlanFiltering(1);
-        x.emit(&mut buffer);
-        let r = NlaBuffer::new_checked(&buffer)?;
-        let default_nla = DefaultNla::from(DefaultNla::parse(&r)?);
-
-        self.message_mut().nlas.push(Nla::Other(default_nla));
-
-        Ok(self)
+        self
     }
 }

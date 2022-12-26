@@ -1,0 +1,7 @@
+[workspace]
+members = [ "config", "netconf", "initd", "config-tool" ]
+
+[profile.release]
+opt-level = "z"
+lto = true
+panic = "abort"

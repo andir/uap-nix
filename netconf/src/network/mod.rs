@@ -1,11 +1,8 @@
-pub mod config;
-mod netlink;
+pub mod netlink;
 
-pub use self::config::{ConfigOperState, LinkConfig, NetworkConfiguration};
+use config::{ConfigOperState, LinkConfig, NetworkConfiguration};
 use self::netlink::{LinkAddExt, LinkExt};
 
-use crate::task::{RestartStrategy, Task};
-use crate::util::AutoCloseFD;
 use futures::TryStreamExt;
 use log::{debug, error, info};
 use rtnetlink::packet::LinkMessage;
@@ -22,52 +19,14 @@ pub enum Error {
     NetlinEncoding(#[from] rtnetlink::packet::DecodeError),
 }
 
-pub struct NetworkTask {
-    child: crate::util::Child,
-    configuration: NetworkConfiguration,
-}
-
-impl Task for NetworkTask {
-    fn name<'a>(&'a self) -> &'a str {
-        "network"
-    }
-
-    fn is_alive(&self) -> Result<bool, crate::error::Error> {
-        self.child.is_alive()
-    }
-
-    fn restart_strategy(&self) -> RestartStrategy {
-        RestartStrategy::RestartProcess
-    }
-
-    fn restart(&mut self) -> Result<(), crate::error::Error> {
-        self.child = self.exec()?;
-	Ok(())
-    }
-
-    fn poll_fd<'a>(&'a self) -> Option<(&'a AutoCloseFD, i16)> {
-        Some((&self.child.fd, nc::POLLIN as i16))
-    }
-}
-
-impl NetworkTask {
-    pub fn new(configuration: NetworkConfiguration) -> Result<Self, crate::error::Error> {
-        let mut s = Self {
-            child: crate::util::Child::default(),
-            configuration,
-        };
-        s.child = s.exec()?;
-        Ok(s)
-    }
-
-    fn exec(&self) -> Result<crate::util::Child, crate::error::Error> {
-        crate::util::fork_and_exec(move || NetworkTaskImpl::new(self.configuration.clone()).run())
-    }
-}
-
 struct NetworkTaskImpl {
     configuration: NetworkConfiguration,
     interfaces: std::collections::HashMap<String, LinkMessage>,
+}
+
+pub fn main(configuration: NetworkConfiguration) {
+    let mut task = NetworkTaskImpl::new(configuration);
+    task.run();
 }
 
 impl NetworkTaskImpl {
@@ -82,7 +41,18 @@ impl NetworkTaskImpl {
         let rt = tokio::runtime::Runtime::new().expect("failed to launch tokio runtime");
         rt.block_on(async {
             if let Err(e) = self.run_async().await {
-                panic!("network task died: {:?}", e);
+                match e {
+                    Error::Netlink(rtnetlink::Error::NetlinkError(
+                        rtnetlink::packet::ErrorMessage { code, .. },
+                    )) => {
+                        let msg = nc::strerror(if code < 0 { -code } else { code });
+
+                        panic!("network task died: {:?} {}", e, msg);
+                    }
+                    _ => {
+                        panic!("network task died: {:?}", e);
+                    }
+                }
             }
         });
     }
@@ -105,8 +75,8 @@ impl NetworkTaskImpl {
                         interfaces.insert(name.clone(), link.clone());
                         self.ensure_oper_state(handle.clone(), name, iface.oper_state, &link)
                             .await?;
-			self.ensure_accept_ra(handle.clone(), name, iface.accept_ra, &link)
-    .await?;
+                        self.ensure_accept_ra(handle.clone(), name, iface.accept_ra, &link)
+                            .await?;
                     }
                     Ok(None) => {
                         if !missing_interfaces.contains(name) {
@@ -219,18 +189,19 @@ impl NetworkTaskImpl {
             .link()
             .add()
             .bridge(name)
-            .vlan_filtering(vlan_filtering)?;
+            .vlan_filtering(vlan_filtering);
         msg.execute().await?;
         Ok(())
     }
 
-    async fn ensure_accept_ra(&self,
-			      handle: rtnetlink::Handle,
-			      name: &str,
-			      accept_ra: bool,
-			      link: &LinkMessage) -> Result<(), Error> {
-
-	Ok(())
+    async fn ensure_accept_ra(
+        &self,
+        handle: rtnetlink::Handle,
+        name: &str,
+        accept_ra: bool,
+        link: &LinkMessage,
+    ) -> Result<(), Error> {
+        Ok(())
     }
 
     async fn ensure_oper_state(
