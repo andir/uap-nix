@@ -36,6 +36,9 @@ in
     nativeBuildInputs = [ self.pkgsBuildHost.glibc ]; # for getconf to get syscalls
     cargoLock = {
       lockFile = ./Cargo.lock;
+      outputHashes = {
+        "wl-nl80211-0.1.0" = "sha256-Xoi9JNzL7JTA3vTkw6wD0Neeq3abFHnOw3koaIosUXU=";
+      };
     };
     cargoBuildFlags = [ "-p initd -p netconf -p wirelessd" ];
   };

@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-wl-nl80211 = "0.1"
+wl-nl80211 = { git = "https://github.com/andir/wl-nl80211", branch = "phy" }
 tokio = { version = "1", features = [ "rt", "macros", "rt-multi-thread" ] }
 futures = { version = "0.3", default-features = false }
 

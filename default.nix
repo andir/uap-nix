@@ -179,7 +179,7 @@ let
         useCommonConfig = false;
         autoModules = false;
         ignoreConfigErrors = false;
-        modDirVersion = "6.1.0";
+        modDirVersion = "6.1.1";
         kernelPatches = [
           { name = "of-fdt-fix-memblock"; patch = ./0001-of-fdt-return-1-if-early_init_dt_scan_memory-found-m.patch; }
           #{ name = "add-debug-logging"; patch = ./0001-Add-debug-logging.patch; }

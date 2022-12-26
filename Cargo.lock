@@ -884,8 +884,7 @@ dependencies = [
 [[package]]
 name = "wl-nl80211"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c20e82714e343450e6966703c7ba4a31132e6907adeb69694cfcd612a01d0e2a"
+source = "git+https://github.com/andir/wl-nl80211?branch=phy#eb81fa24b2640bb7a962ca9060d8b628100baa95"
 dependencies = [
  "anyhow",
  "byteorder",
