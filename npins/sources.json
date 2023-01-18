@@ -8,9 +8,9 @@
         "repo": "mt76"
       },
       "branch": "master",
-      "revision": "5b509e80384ab019ac11aa90c81ec0dbb5b0d7f2",
-      "url": "https://github.com/openwrt/mt76/archive/5b509e80384ab019ac11aa90c81ec0dbb5b0d7f2.tar.gz",
-      "hash": "114hqs64irrfj57d0by2kzms7v1k1a69m64xl8fj6wgyi39b5pam"
+      "revision": "679254c50f279fe4f1e3ae1fb943f0d1ecdac4ab",
+      "url": "https://github.com/openwrt/mt76/archive/679254c50f279fe4f1e3ae1fb943f0d1ecdac4ab.tar.gz",
+      "hash": "0liv7azkhq9fz7lwaafgw1f32rq3d95ji9y940xlly7jjgs9gk3y"
     },
     "nixpkgs": {
       "type": "Git",
@@ -20,9 +20,9 @@
         "repo": "nixpkgs"
       },
       "branch": "nixpkgs-unstable",
-      "revision": "b139e44d78c36c69bcbb825b20dbfa51e7738347",
-      "url": "https://github.com/nixos/nixpkgs/archive/b139e44d78c36c69bcbb825b20dbfa51e7738347.tar.gz",
-      "hash": "1i3a66h4wix9vs9ana4qbds0va6s81bbdzgq2hszndnd83bzzphq"
+      "revision": "2d38b664b4400335086a713a0036aafaa002c003",
+      "url": "https://github.com/nixos/nixpkgs/archive/2d38b664b4400335086a713a0036aafaa002c003.tar.gz",
+      "hash": "0c9lsw7r21cv0y1kp1nsl6k4kaklf8xykwnsmvbpdjqi3jfzc7y7"
     },
     "npins": {
       "type": "Git",

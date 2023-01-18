@@ -35,6 +35,12 @@ let
     config.allowUnsupportedSystem = true;
     overlays = [
       (import ./userspace.nix)
+      # enable python2 for ubootTools
+      (self: super: {
+        python2 = super.python2.overrideAttrs ({ meta ? {}, ...}: {
+          meta = meta // { broken = false; knownVulnerabilities = []; };
+        });
+      })
     ] ++ (targetSystem.overlays or [ ]);
   };
 
