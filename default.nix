@@ -140,7 +140,6 @@ let
             object = pkgs.writeScript "init" ''
               #!/bin/sh
               set -x
-              ls -la /bin/
               RUST_BACKTRACE=full exec initd init
               #ip l set wan up
               exec sh
@@ -185,10 +184,8 @@ let
         useCommonConfig = false;
         autoModules = false;
         ignoreConfigErrors = false;
-        modDirVersion = "6.1.1";
+        modDirVersion = "6.1.8";
         kernelPatches = [
-          { name = "of-fdt-fix-memblock"; patch = ./0001-of-fdt-return-1-if-early_init_dt_scan_memory-found-m.patch; }
-          #{ name = "add-debug-logging"; patch = ./0001-Add-debug-logging.patch; }
           { name = "add-mtd-driver"; patch = ./0001-mtd-rawnand-add-driver-support-for-MT7621-nand-flash.patch; }
           { name = "ralink-gpio"; patch = ./802-GPIO-MIPS-ralink-add-gpio-driver-for-ralink-SoC.patch; }
           # { name = "825-i2c-MIPS-adds-ralink-I2C-driver.patch"; patch = ./825-i2c-MIPS-adds-ralink-I2C-driver.patch; }
