@@ -16,7 +16,7 @@ let
     set -ex
     ${off}/bin/off
     sleep 5
-    ${on}/bin/off
+    ${on}/bin/on
   '';
 
   retry = pkgs.writeShellScriptBin "retry" ''

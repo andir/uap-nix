@@ -15,4 +15,17 @@ async fn main() {
     for msg in msgs {
         println!("{:?}", msg);
     }
+
+    let mut phy_handle = handle.phy().get().execute().await;
+
+    let mut msgs = Vec::new();
+    while let Some(msg) = phy_handle.try_next().await.unwrap() {
+        msgs.push(msg);
+    }
+    assert!(!msgs.is_empty());
+    for msg in msgs {
+        println!("{:?}", msg);
+    }
+
+
 }

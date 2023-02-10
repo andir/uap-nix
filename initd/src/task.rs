@@ -1,5 +1,6 @@
 use crate::error::Error;
 use crate::util;
+use async_trait::async_trait;
 
 #[derive(Debug, Clone, Copy)]
 pub enum RestartStrategy {
@@ -8,20 +9,29 @@ pub enum RestartStrategy {
     Reboot,
 }
 
+impl From<config::RestartStrategy> for RestartStrategy {
+    fn from(other: config::RestartStrategy) -> Self {
+	match other {
+	    config::RestartStrategy::Never => Self::Never,
+	    config::RestartStrategy::RestartProcess => Self::RestartProcess,
+	    config::RestartStrategy::Reboot => Self::Reboot,
+	}
+    }
+}
+
 impl std::fmt::Debug for dyn Task {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(fmt, "Task(name:{})", self.name())
     }
 }
 
-pub trait Task {
+#[async_trait]
+pub trait Task: Send {
     fn name<'a>(&'a self) -> &'a str;
-    fn is_alive(&self) -> Result<util::ProcessStatus, Error>;
+    async fn is_alive(&mut self) -> Result<util::ProcessStatus, Error>;
+    async fn wait(&mut self) -> Result<util::ProcessStatus, Error>;
     fn restart_strategy(&self) -> RestartStrategy;
     fn restart(&mut self) -> Result<(), Error>;
-    fn poll_fd<'a>(&'a self) -> Option<(&'a util::AutoCloseFD, i16)> {
-        None
-    }
 }
 
 pub struct SubprocessTask {
@@ -30,83 +40,65 @@ pub struct SubprocessTask {
     arguments: Vec<String>,
     restart_strategy: RestartStrategy,
     child: util::Child,
+    is_shell: bool,
 }
 
 impl SubprocessTask {
-    pub fn new(executable: impl AsRef<str>, arguments: &[&str], restart_strategy: RestartStrategy, name: &str) -> Result<Self, Error> {
+    pub fn new(executable: impl AsRef<str>, arguments: &[&str], restart_strategy: RestartStrategy, name: &str, shell: bool) -> Result<Self, Error> {
         Ok(Self {
             executable: executable.as_ref().to_owned(),
             arguments: arguments.iter().map(|s| String::from(*s)).collect(),
-            child: Self::spawn(executable, arguments)?,
+            child: Self::spawn(executable, arguments, shell)?,
 	    restart_strategy,
 	    name: name.to_string(),
+            is_shell: shell,
         })
     }
 
     fn spawn<T: AsRef<str>>(
         command: impl AsRef<str>,
         arguments: &[T],
+        is_shell: bool,
     ) -> Result<util::Child, Error> {
-        util::spawn_child(
+        util::async_spawn_child(
             command.as_ref(),
             &arguments.iter().map(|x| x.as_ref()).collect::<Vec<_>>(),
+            is_shell,
         )
     }
 
     fn restart(&mut self) -> Result<(), Error> {
-        self.child = Self::spawn(&self.executable, self.arguments.as_slice())?;
+        self.child = Self::spawn(&self.executable, self.arguments.as_slice(), self.is_shell)?;
         Ok(())
     }
 }
 
-pub struct ShellTask {
-    task: SubprocessTask,
-}
-
+pub struct ShellTask;
 impl ShellTask {
     pub fn new() -> Result<SubprocessTask, Error> {
-	SubprocessTask::new("/bin/sh", &["sh"], RestartStrategy::Reboot, "shell")
-    }
-}
-
-impl Task for ShellTask {
-    fn name<'a>(&'a self) -> &'a str {
-        self.task.name()
-    }
-
-    fn is_alive(&self) -> Result<util::ProcessStatus, Error> {
-	self.task.is_alive()
-    }
-
-    fn restart_strategy(&self) -> RestartStrategy {
-	self.task.restart_strategy()
-    }
-
-    fn poll_fd<'a>(&'a self) -> Option<(&'a util::AutoCloseFD, i16)> {
-	self.task.poll_fd()
-    }
-
-    fn restart(&mut self) -> Result<(), Error> {
-	self.task.restart()
+	SubprocessTask::new("/bin/sh", &[], RestartStrategy::Reboot, "shell", true)
     }
 }
 
 
+#[async_trait]
 impl Task for SubprocessTask {
     fn name<'a>(&'a self) -> &'a str {
         &self.name
     }
 
-    fn is_alive(&self) -> Result<util::ProcessStatus, Error> {
-        self.child.is_alive()
+    #[inline]
+    async fn is_alive(&mut self) -> Result<util::ProcessStatus, Error> {
+        self.child.is_alive().await
+    }
+
+    #[inline]
+    async fn wait(&mut self) -> Result<util::ProcessStatus, Error> {
+        self.child.wait().await
     }
 
     fn restart_strategy(&self) -> RestartStrategy {
 	self.restart_strategy
-    }
-
-    fn poll_fd<'a>(&'a self) -> Option<(&'a util::AutoCloseFD, i16)> {
-        Some((&self.child.fd, nc::POLLIN as i16))
     }
 
     fn restart(&mut self) -> Result<(), Error> {

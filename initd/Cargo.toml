@@ -12,3 +12,5 @@ nc = "0.8"
 thiserror = "1"
 log = "0.4"
 config = { path = "../config" }
+tokio = { version = "1", features = [ "rt", "macros", "process", "rt-multi-thread", "sync" ] }
+async-trait = "0.1"

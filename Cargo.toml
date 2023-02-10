@@ -1,5 +1,5 @@
 [workspace]
-members = [ "config", "netconf", "initd", "config-tool", "wirelessd" ]
+members = [ "config", "netconf", "initd", "config-tool", "wirelessd", "nanobus" ]
 
 [profile.release]
 opt-level = "z"

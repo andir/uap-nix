@@ -117,6 +117,11 @@ let
         }
           {
             object = pkgs.pkgsBuildHost.verifyNetconfConfig (pkgs.writeText "config.json" (builtins.toJSON {
+              services.hostapd = {
+                file = "${pkgs.hostapd}/bin/hostapd";
+                args = [ "/etc/hostapd.conf" ];
+                restart_strategy = "RestartProcess";
+              };
               network.interfaces = {
                 wan = {
                   oper_state = "Up";
@@ -161,15 +166,17 @@ let
               ssid=test
               country_code=DE
               wpa=1
-              wpa_psk=d27c89adbd8dd3f811a09bb662e78441a4842517486af5b9a4b377f460fd9fc7
+              wpa_passphrase=testtest
               wpa_pairwise=CCMP
-              hw_mode=a
+              hw_mode=g
 
               wmm_enabled=1
               ieee80211n=1
               ieee80211ac=1
 
-              channel=0
+              #channel=acs_survey
+              channel=11
+              acs_num_scans=5
             '';
             symlink = "/etc/hostapd.conf";
           }];
@@ -289,7 +296,7 @@ let
           -d vmlinux.bin.gz \
           $out/kernel.img
 
-        ln -s ${self.initramfs}/initrd.img initramfs.img
+        ln -s ${self.initramfs}/initrd initramfs.img
 
         ls -lh $(readlink -f initramfs.img kernel.img)
         set +x

@@ -1,17 +1,22 @@
-mod task;
-mod util;
 mod early;
 mod error;
+mod task;
+mod util;
 
 use clap::Parser;
-use util::{getpid, reboot, sleep_secs, FD};
-use util::ProcessStatus;
 use log::{debug, error, info, warn};
+use util::ProcessStatus;
+use util::{getpid, reboot, sleep_secs, FD};
 
-
-#[derive(Parser, Clone, Copy)]
+#[derive(Parser, Clone)]
 pub enum Command {
-    Init,
+    Init(InitArguments),
+}
+
+#[derive(Parser, Clone)]
+pub struct InitArguments {
+    #[clap(short, long, default_value = "/config.json")]
+    config_file: String,
 }
 
 #[derive(Parser)]
@@ -36,8 +41,9 @@ fn main() {
 
     let args = Arguments::parse();
     match args.command {
-        Command::Init => {
-            if let Err(e) = run() {
+        Command::Init(args) => {
+            let config_file = config::load_config(&args.config_file).unwrap();
+            if let Err(e) = run(config_file) {
                 error!("System failed: {:?}", e);
             }
 
@@ -55,25 +61,17 @@ fn main() {
     };
 }
 
-fn run() -> Result<(), error::Error> {
+fn run(config: config::Configuration) -> Result<(), error::Error> {
     info!("🛜 System init started 🛜");
 
     early::SystemInit::default().init()?;
 
-    // do this after /proc is mounted
-    let self_exectuable = match std::env::current_exe().map(|x| x.to_str().map(|x| x.to_string())) {
-        Ok(Some(e)) => e,
-        Ok(None) => {
-            error!("The executable path isn't a valid string :(");
-            "/invalid/path".to_string()
-        }
-        Err(e) => {
-            error!("Failed to determine my own executable path :(: {:?}", e);
-            "/invalid/path/".to_string()
-        }
-    };
+    info!("Creating new tokio executor");
+    let runtime = tokio::runtime::Runtime::new()?;
+    runtime.block_on(run_tasks(config))
+}
 
-
+async fn run_tasks(config: config::Configuration) -> Result<(), error::Error> {
     info!("⌛ Starting tasks ⌛");
     let shell_task = task::ShellTask::new()?;
     let mut tasks: Vec<Box<dyn task::Task>> = vec![Box::new(shell_task)];
@@ -82,68 +80,157 @@ fn run() -> Result<(), error::Error> {
 
     let network_task = task::SubprocessTask::new(
         "/bin/netconf",
-        &["netconf"],
+        &[],
         task::RestartStrategy::Never,
         "network",
+        true,
     )?;
 
-    loop {
-        let mut poll_fds = tasks
-            .iter()
-            .filter_map(|task| task.poll_fd())
-            .map(|(fd, flags)| {
-                let mut pollfd = nc::pollfd_t::default();
-                pollfd.fd = fd.get();
-                pollfd.events = flags;
-                pollfd
-            })
-            .collect::<Vec<_>>();
+    tasks.push(Box::new(network_task));
 
-        unsafe { nc::poll(&mut poll_fds, 120000) }.unwrap();
-        let mut new_tasks = vec![];
-        for mut task in tasks {
-            match task.is_alive()? {
-                ProcessStatus::Alive => {
-                    new_tasks.push(task);
-                }
-                ProcessStatus::Dead { status } => {
-                    warn!(
-                        "Task {:?} died with status {}, checking restart strategy",
-                        task, status
-                    );
-                    match task.restart_strategy() {
-                        task::RestartStrategy::Never => {
-                            info!("Task {:?} isn't configured to restart.", task);
-                        }
-                        task::RestartStrategy::Reboot => {
-                            error!("Task {:?} requires a device reboot. Rebooting.", task);
-                            return Err(error::Error::TaskDied);
-                        }
-                        task::RestartStrategy::RestartProcess => {
-                            info!("Task {:?} is configured fo restart, restarting it", task);
-                            match task.restart() {
-                                Ok(_) => new_tasks.push(task),
-                                Err(e) => {
-                                    error!(
-                                        "Failed to restart task {:?}, giving up on it: {:?}",
-                                        task, e
-                                    );
+    if !config.services.is_empty() {
+        info!("Starting runtime define services");
+        for (name, cfg) in config.services.iter() {
+            info!("Starting services {}", name);
+            let restart_strategy = cfg.restart_strategy.into();
+            let args = cfg.args.iter().map(|s| s.as_ref()).collect::<Vec<&str>>();
+            let service =
+                task::SubprocessTask::new(cfg.file.clone(), &args, restart_strategy, name, false)?;
+            tasks.push(Box::new(service));
+        }
+    }
+
+    let mut set = tokio::task::JoinSet::new();
+    for task in tasks {
+        set.spawn(async move {
+            let mut task = task;
+            let mut res = ProcessStatus::Dead { status: -1 };
+            loop {
+                match task.wait().await {
+                    Err(e) => {
+                        error!("Failed to wait for task {:?}: {:?}", task, e);
+                        break;
+                    }
+                    Ok(ProcessStatus::Alive) => {
+                        continue;
+                    }
+                    Ok(ProcessStatus::Dead { status }) => {
+                        res = ProcessStatus::Dead { status };
+                        warn!(
+                            "Task {:?} died with status {}, checking restart strategy",
+                            task, status
+                        );
+                        match task.restart_strategy() {
+                            task::RestartStrategy::Never => {
+                                info!("Task {:?} isn't configured to restart.", task);
+                                return None;
+                            }
+                            task::RestartStrategy::Reboot => {
+                                error!("Task {:?} requires a device reboot. Rebooting.", task);
+                                break;
+                            }
+                            task::RestartStrategy::RestartProcess => {
+                                info!("Task {:?} is configured fo restart, restarting it", task);
+                                match task.restart() {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        error!(
+                                            "Failed to restart task {:?}, giving up on it: {:?}",
+                                            task, e
+                                        );
+                                        break;
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-        }
 
-        tasks = new_tasks;
-
-        if tasks.len() > 0 {
-            debug!("There are still {} children alive, continuing", tasks.len());
-            continue;
-        }
-        debug!("all children must have died 😿");
-
-        return Err(error::Error::AllChildrenDied);
+            Some(res)
+        });
     }
+
+    loop {
+        tokio::select! {
+            // wait for any of them to finish
+            value = set.join_next() => {
+                match value {
+                    Some(Ok(Some(status))) => {
+                        error!("Some task died. This means we've to reboot. Exit status: {:?}", status);
+                        return Err(error::Error::AllChildrenDied);
+                    }
+                    Some(Ok(None)) => {
+                        info!("A process died but doesn't require a restart.");
+                    }
+                    e => {
+                        error!("Failed to join task futures: {:?}", e);
+                        return Err(error::Error::AllChildrenDied);
+                    }
+                }
+        }
+        };
+    }
+
+    Ok(())
+
+    //loop {
+    //    let mut new_tasks = vec![];
+
+    //    {
+    //        let mut set = tokio::task::JoinSet::new();
+
+    //        for task in tasks.iter_mut().map(|task| task.wait()) {
+    //            set.spawn(async move { task.await });
+    //        }
+
+    //        // wait for any of the processes to die
+    //        set.join_next().await;
+    //    }
+    //
+    //    for mut task in tasks {
+    //        match task.is_alive().await? {
+    //            ProcessStatus::Alive => {
+    //                new_tasks.push(task);
+    //            }
+    //            ProcessStatus::Dead { status } => {
+    //                warn!(
+    //                    "Task {:?} died with status {}, checking restart strategy",
+    //                    task, status
+    //                );
+    //                match task.restart_strategy() {
+    //                    task::RestartStrategy::Never => {
+    //                        info!("Task {:?} isn't configured to restart.", task);
+    //                    }
+    //                    task::RestartStrategy::Reboot => {
+    //                        error!("Task {:?} requires a device reboot. Rebooting.", task);
+    //                        return Err(error::Error::TaskDied);
+    //                    }
+    //                    task::RestartStrategy::RestartProcess => {
+    //                        info!("Task {:?} is configured fo restart, restarting it", task);
+    //                        match task.restart() {
+    //                            Ok(_) => new_tasks.push(task),
+    //                            Err(e) => {
+    //                                error!(
+    //                                    "Failed to restart task {:?}, giving up on it: {:?}",
+    //                                    task, e
+    //                                );
+    //                            }
+    //                        }
+    //                    }
+    //                }
+    //            }
+    //        }
+    //    }
+
+    //    tasks = new_tasks;
+
+    //    if tasks.len() > 0 {
+    //        debug!("There are still {} children alive, continuing", tasks.len());
+    //        continue;
+    //    }
+    //    debug!("all children must have died 😿");
+
+    //    return Err(error::Error::AllChildrenDied);
+    //}
 }

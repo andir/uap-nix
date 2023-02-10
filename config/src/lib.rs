@@ -4,6 +4,29 @@ use serde::Deserialize;
 #[cfg_attr(feature = "schema-generator", derive(schemars::JsonSchema))]
 pub struct Configuration {
     pub network: NetworkConfiguration,
+    pub services: std::collections::BTreeMap<String, ServiceConfiguration>,
+}
+
+#[derive(Debug, Deserialize, Clone, Copy)]
+#[cfg_attr(feature = "schema-generator", derive(schemars::JsonSchema))]
+pub enum RestartStrategy {
+    Never,
+    RestartProcess,
+    Reboot,
+}
+
+
+fn default_restart_strategy() -> RestartStrategy {
+    RestartStrategy::Reboot
+}
+
+#[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "schema-generator", derive(schemars::JsonSchema))]
+pub struct ServiceConfiguration {
+    pub file: String,
+    pub args: Vec<String>,
+    #[serde(default="default_restart_strategy")]
+    pub restart_strategy: RestartStrategy,
 }
 
 #[derive(Debug, Deserialize, Clone, Copy, PartialEq)]

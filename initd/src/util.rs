@@ -1,21 +1,13 @@
 use crate::error::Error;
+use std::process::Stdio;
 
 use log::{debug, error, info};
 
-impl Default for Child {
-    fn default() -> Child {
-        Child {
-            fd: AutoCloseFD { fd: -1 },
-            pid: -1,
-        }
-    }
-}
-
 pub struct Child {
-    pub fd: AutoCloseFD,
-    pub pid: i32,
+    pub async_child: tokio::process::Child,
 }
 
+#[derive(Debug)]
 pub enum ProcessStatus {
     Alive,
     Dead { status: i32 },
@@ -23,70 +15,56 @@ pub enum ProcessStatus {
 
 impl ProcessStatus {
     pub fn is_alive(&self) -> bool {
-	matches!(self, ProcessStatus::Alive)
+        matches!(self, ProcessStatus::Alive)
     }
+}
+
+fn map_tokio_wait_result(status: std::process::ExitStatus) -> ProcessStatus {
+        match (status, status.code()) {
+            (_, None) => ProcessStatus::Alive,
+            (_, Some(s)) => ProcessStatus::Dead { status: s },
+            (status, None) => {
+                use std::os::unix::process::ExitStatusExt;
+                let s = status.into_raw();
+                ProcessStatus::Dead { status: s }
+            }
+        }
 }
 
 impl Child {
-    pub fn is_alive(&self) -> Result<ProcessStatus, Error> {
-        let mut status = 0;
-        let mut usage = nc::rusage_t::default();
-        match unsafe { nc::wait4(self.pid, &mut status, nc::WNOHANG, &mut usage) } {
-            Ok(0) => {
-                debug!("PID {} is still alive and kicking", self.pid);
-                return Ok(ProcessStatus::Alive);
-            }
-            Ok(n) if n == self.pid => {
-                info!("PID {} died.", self.pid);
-                return Ok(ProcessStatus::Dead { status });
-            }
-            Ok(n) => {
-                error!(
-                    "PID {} returned {} not sure what this means?!? Considering the process dead.",
-                    self.pid, n
-                );
-                return Ok(ProcessStatus::Dead { status });
-            }
-            Err(e) => {
-                return Err(Error::from_errno_with_message(
-                    e,
-                    "Failed to wait4 for child",
-                ));
-            }
-        }
+    pub async fn is_alive(&mut self) -> Result<ProcessStatus, Error> {
+        let res = self.async_child.try_wait().map(|x| x.map(map_tokio_wait_result).unwrap_or(ProcessStatus::Alive))?;
+        Ok(res)
+    }
+
+    pub async fn wait(&mut self) -> Result<ProcessStatus, Error> {
+        let res = self.async_child.wait().await.map(map_tokio_wait_result)?;
+        Ok(res)
     }
 }
 
-/// Spawn a shell as a subprocess that inherits the TTY
-pub fn spawn_child(cmd: &str, args: &[&str]) -> Result<Child, Error> {
-    debug!("Forking new child: {} {:?}", cmd, args);
-    let f = move || {
-        debug!("calling execve {} {:?}", cmd, args);
-        execve(cmd, args, &[]).expect("Child must execute");
+pub fn async_spawn_child(cmd: &str, args: &[&str], is_shell: bool) -> Result<Child, Error> {
+    let mut command = tokio::process::Command::new(cmd);
+    command.args(args);
+    command.env_clear();
+    command.kill_on_drop(true);
+    if !is_shell {
+        command.stdout(Stdio::inherit());
+        command.stdin(Stdio::null());
+    } else {
+        command.stdout(Stdio::inherit());
+        command.stdin(Stdio::inherit());
+    }
+    unsafe {
+        command.pre_exec(|| {
+            // set a new process group id
+            // FIXME: tokio currently has an unstable feature for this as well
+            nc::setpgid(0, 0).expect("Seting the pgid should work");
+            Ok(())
+        })
     };
-    fork_and_exec(f)
-}
 
-/// Spawn a shell as a subprocess that inherits the TTY
-pub fn fork_and_exec(f: impl FnOnce() -> ()) -> Result<Child, Error> {
-    let pid = unsafe { nc::fork() }
-        .map_err(|errno| Error::from_errno_with_message(errno, "failed to fork"))?;
-    if pid == 0 {
-        info!("New child alive and kicking. 🎉");
-        // set a new process group id
-        unsafe { nc::setpgid(0, 0) }.expect("Seting the pgid should work");
-
-        f();
-        unreachable!();
-    }
-
-    let pidfd = unsafe { nc::pidfd_open(pid, 0) }
-        .map_err(|errno| Error::from_errno_with_message(errno, "Failed to create pidfd"))?;
-
-    Ok(Child {
-        pid,
-        fd: AutoCloseFD::from(pidfd),
-    })
+    command.spawn().map_err(Error::IO).map(|c| Child { async_child: c })
 }
 
 pub fn resolve_symlink(path: &str) -> Result<String, Error> {
@@ -94,10 +72,10 @@ pub fn resolve_symlink(path: &str) -> Result<String, Error> {
     let mut output = [0u8; BUFFER_SIZE];
 
     let s = stat(path)?;
-    if s.st_mode & nc::S_IFMT !=  nc::S_IFLNK {
-	return Ok(path.to_string());
+    if s.st_mode & nc::S_IFMT != nc::S_IFLNK {
+        return Ok(path.to_string());
     }
-    
+
     let _ = unsafe {
         nc::readlink(path, &mut output, BUFFER_SIZE)
             .map_err(|errno| Error::from_errno_with_message(errno, "Failed to readlink"))

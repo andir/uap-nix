@@ -44,6 +44,9 @@ pub enum Error {
 
     #[error("Failed to create a pipe(2)")]
     PipeCreationFailed,
+
+    #[error("IO error: {0}")]
+    IO(#[from] std::io::Error)
 }
 
 

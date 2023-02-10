@@ -37,7 +37,7 @@ in
     cargoLock = {
       lockFile = ./Cargo.lock;
       outputHashes = {
-        "wl-nl80211-0.1.0" = "sha256-Xoi9JNzL7JTA3vTkw6wD0Neeq3abFHnOw3koaIosUXU=";
+        "wl-nl80211-0.1.1" = "sha256-ONgtzw+edNAd/a+XNs8NEoQJs5YnAjDBtSyrRzpgWM0=";
       };
     };
     cargoBuildFlags = [ "-p initd -p netconf -p wirelessd" ];
