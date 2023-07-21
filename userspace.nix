@@ -33,7 +33,10 @@ in
   userspace = self.rustPlatform.buildRustPackage {
     name = "userspace";
     src = src;
-    nativeBuildInputs = [ self.pkgsBuildHost.glibc ]; # for getconf to get syscalls
+    nativeBuildInputs = [
+      self.pkgsBuildHost.glibc # for getconf to get syscalls
+      self.pkgsBuildHost.capnproto
+    ];
     cargoLock = {
       lockFile = ./Cargo.lock;
       outputHashes = {

@@ -7,3 +7,10 @@ edition = "2021"
 serde = { version = "1", features = [ "derive" ] }
 tokio = { version = "1", features = [ "full" ] }
 log = "0.4"
+capnp = "0.16"
+capnp-rpc = "0.16"
+futures = "0.3"
+tokio-util = { version = "0.7.7", features = [ "compat" ] }                   # Additional utilities for working with Tokio. 
+
+[build-dependencies]
+capnpc = "0.16"

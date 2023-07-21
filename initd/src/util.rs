@@ -60,6 +60,7 @@ pub fn async_spawn_child(cmd: &str, args: &[&str], is_shell: bool) -> Result<Chi
             // set a new process group id
             // FIXME: tokio currently has an unstable feature for this as well
             nc::setpgid(0, 0).expect("Seting the pgid should work");
+           
             Ok(())
         })
     };

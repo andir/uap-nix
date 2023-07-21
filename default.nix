@@ -13,7 +13,7 @@ let
         gcc.tune = "1004kc";
         gcc.arch = "mips32r2";
         gcc.float = "soft";
-        openssl.system = "linux-generic32";
+        #openssl.system = "linux-generic32";
         withTLS = true;
 
         name = "mt7621"; # idk
@@ -37,6 +37,13 @@ let
       (import ./userspace.nix)
       # enable python2 for ubootTools
       (self: super: {
+        openssl = if super.stdenv.isMips then super.openssl.overrideAttrs ({ CFLAGS ? [], ... }: {
+          # the nix wrapper sets some mips32r2 parametrs but OpenSSL
+          # adds -mips when it detects mips32 and doesn't see any
+          # mips32 flags. We just specify it here (again) so OpenSSL
+          # doesn't fail to build.
+          CFLAGS = CFLAGS ++ [ "-mips32r2" ];
+        }) else super.openssl;
         python2 = super.python2.overrideAttrs ({ meta ? {}, ...}: {
           meta = meta // { broken = false; knownVulnerabilities = []; };
         });
@@ -191,7 +198,7 @@ let
         useCommonConfig = false;
         autoModules = false;
         ignoreConfigErrors = false;
-        modDirVersion = "6.1.8";
+        modDirVersion = pkgs.linux_latest.modDirVersion;
         kernelPatches = [
           { name = "add-mtd-driver"; patch = ./0001-mtd-rawnand-add-driver-support-for-MT7621-nand-flash.patch; }
           { name = "ralink-gpio"; patch = ./802-GPIO-MIPS-ralink-add-gpio-driver-for-ralink-SoC.patch; }

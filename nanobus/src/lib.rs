@@ -1,93 +1,205 @@
+use capnp_rpc::{pry, rpc_twoparty_capnp};
+use futures::AsyncReadExt;
+
 mod broadcast;
 
-use log::info;
+pub mod nanobus_capnp {
+    include!(concat!(env!("OUT_DIR"), "/src/nanobus_capnp.rs"));
+}
 
-use serde::{Serialize, Deserialize};
-use tokio::{net::{unix::SocketAddr, UnixStream}, io::AsyncWriteExt};
+pub use nanobus_capnp::Topic;
+
+use capnp::capability::Promise;
+use log::{info,debug,error};
 
 #[derive(Debug)]
 pub enum Error {
-    SocketError(std::io::Error)
+    SocketError(std::io::Error),
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct Message {
-    pub topic: String,
-    pub payload: Vec<u8>,
+pub struct CapnpClient {
+    tx: tokio::sync::mpsc::Sender<(nanobus_capnp::Topic, String)>,
 }
 
+impl CapnpClient {
+    pub async fn run(
+        path: &str,
+	topics: Vec<nanobus_capnp::Topic>
+    ) -> Result<
+        (
+            impl futures::Future<Output = ()>,
+            tokio::sync::mpsc::Receiver<(nanobus_capnp::Topic, String)>,
+        ),
+        Error,
+	> {
+        let (tx, rx) = tokio::sync::mpsc::channel::<(nanobus_capnp::Topic, String)>(16);
 
-pub struct Client {
-    socket: tokio::net::UnixStream,
-}
+        let socket = tokio::net::UnixStream::connect(path)
+            .await
+            .map_err(Error::SocketError)?;
+
+        let (reader, writer) = tokio_util::compat::TokioAsyncReadCompatExt::compat(socket).split();
+        let rpc_network = Box::new(capnp_rpc::twoparty::VatNetwork::new(
+            reader,
+            writer,
+            rpc_twoparty_capnp::Side::Client,
+            Default::default(),
+        ));
+	let client: nanobus_capnp::subscriber::Client = capnp_rpc::new_client(CapnpClient { tx });
+        let mut rpc_system = capnp_rpc::RpcSystem::new(rpc_network, Some(client.clone().client));
+
+        let broker: nanobus_capnp::broker::Client = rpc_system.bootstrap(rpc_twoparty_capnp::Side::Server);
 
 
-impl Client {
-    pub async fn connect(path: String) -> Result<Self, Error> {
-	let socket = tokio::net::UnixStream::connect(path).await.map_err(Error::SocketError)?;
-	Ok(Self { socket })
-    }
-}
+	let local_set = tokio::task::LocalSet::new();
 
-pub struct Server {
-    socket: tokio::net::UnixListener,
-}
-
-
-struct ServerClient {
-    socket: tokio::net::UnixStream,
-    addr: SocketAddr,
-}
-
-impl ServerClient {
-    fn from(socket: UnixStream, addr: SocketAddr) -> Self {
-	Self { socket, addr }
-    }
-
-    async fn run(&mut self, mut subscriber: broadcast::Subscriber<Vec<u8>>) -> Result<(), Error> {
-	let (reader, writer) = self.socket.split();
-	
-	tokio::select! {
-	    msg = subscriber.recv() => {
-		match msg {
-		    Some(msg) => {
-			writer.write_all(&msg).await?;
-		    },
-		    None => {},
-		}
+	local_set.spawn_local(async move {
+	    let mut sub_req = broker.subscribe_request();
+	    sub_req.get().set_subscriber(client);
+	    let mut t = sub_req.get().init_topics(topics.len() as u32);
+	    for (n, topic) in topics.iter().cloned().enumerate() {
+		t.set(n as u32, topic);
 	    }
-	}
 
-	info!("ServerClient stopped receiving messages from broadcast channel");
-	Ok(())
+	    match sub_req.send().promise.await {
+		Ok(x) => {
+		    info!("Subscribed on nanobus");
+		},
+		Err(e) => {
+		    error!("Failed to subscribe on nanobus: {:?}", e);
+		},
+	    }
+	});
+
+	local_set.spawn_local(rpc_system);
+	
+
+	Ok((local_set, rx))
     }
 }
 
+impl nanobus_capnp::subscriber::Server for CapnpClient {
+    fn send(&mut self, params: nanobus_capnp::subscriber::SendParams, _results: nanobus_capnp::subscriber::SendResults) -> Promise<(), capnp::Error> {
+
+	Promise::ok(())
+    }
+}
+
+pub struct Server;
+
+#[derive(Default)]
+pub struct CapnpServer {
+    subscribers: Vec<(nanobus_capnp::subscriber::Client, Vec<nanobus_capnp::Topic>)>,
+}
+
+impl nanobus_capnp::broker::Server for CapnpServer {
+    fn subscribe(
+        &mut self,
+        params: nanobus_capnp::broker::SubscribeParams,
+        mut results: nanobus_capnp::broker::SubscribeResults,
+    ) -> Promise<(), capnp::Error> {
+        let params = pry!(params.get());
+        let caller = pry!(params.get_subscriber());
+        let mut topics = vec![];
+
+        for topic in pry!(params.get_topics()).iter() {
+            topics.push(pry!(topic));
+        }
+
+        self.subscribers.push((caller, topics));
+
+        Promise::ok(())
+    }
+
+    fn publish(
+        &mut self,
+        params: nanobus_capnp::broker::PublishParams,
+        _results: nanobus_capnp::broker::PublishResults,
+    ) -> Promise<(), capnp::Error> {
+        let params = pry!(params.get());
+        let topic = pry!(params.get_topic());
+        let message = pry!(params.get_message());
+
+        info!("{:?}: {}", topic, message);
+
+        use futures::stream::futures_unordered::FuturesUnordered;
+        use futures::FutureExt;
+        use futures::StreamExt;
+        let promises = self
+            .subscribers
+            .iter()
+            .filter_map(|(subscriber, topics)| {
+                if topics.contains(&topic) || topics.contains(&Topic::All) {
+                    let mut req = subscriber.send_request();
+                    req.get().set_message(message);
+                    req.get().set_topic(topic);
+                    return Some(req.send().promise.map(|_| ()));
+                } else {
+                    return None;
+                }
+            })
+            .collect::<FuturesUnordered<_>>();
+        let r = promises.collect::<Vec<_>>().map(|_| Ok(()));
+        Promise::from_future(r)
+    }
+}
 
 impl Server {
-    pub async fn bind(path: String) -> Result<Self, Error> {
-	let socket = tokio::net::UnixListener::bind(path).map_err(Error::SocketError)?;
-	Ok(Self { socket })
-    }
+    pub async fn run(
+        path: &str,
+    ) -> Result<
+        (
+            impl futures::Future<Output = ()>,
+            tokio::sync::mpsc::Sender<(nanobus_capnp::Topic, String)>,
+        ),
+        Error,
+    > {
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<(nanobus_capnp::Topic, String)>(16);
 
-    pub async fn run(&mut self) -> Result<(), Error> {
-	let mut bc = broadcast::BroadcastChannel::new();
-	loop {
-	    let (socket, remote) = self.socket.accept().await.map_err(Error::SocketError)?;
+        let cps = CapnpServer::default();
+        let broker: nanobus_capnp::broker::Client = capnp_rpc::new_client(cps);
+        let socket = tokio::net::UnixListener::bind(path).map_err(Error::SocketError)?;
 
-	    info!("Connection from {:?}", remote);
+        let b = broker.clone();
 
-	    let mut client = ServerClient::from(socket, remote);
+        let handle_incoming = async move {
+            loop {
+                let (socket, remote) = socket.accept().await.map_err(Error::SocketError)?;
+                info!("Connection from {:?}", remote);
 
-	    let subscriber = bc.subscribe();
+                let (reader, writer) =
+                    tokio_util::compat::TokioAsyncReadCompatExt::compat(socket).split();
+                let network = capnp_rpc::twoparty::VatNetwork::new(
+                    reader,
+                    writer,
+                    rpc_twoparty_capnp::Side::Server,
+                    Default::default(),
+                );
+                let rpc_system =
+                    capnp_rpc::RpcSystem::new(Box::new(network), Some(broker.clone().client));
 
-	    // spawn the writing part that sends messages to the socket whenever we receive something
-	    tokio::spawn(async move {
-		client.run_reader(subscriber).await.unwrap();
-	    });
-	}
+                tokio::task::spawn_local(rpc_system);
+            }
 
+            Result::<(), Error>::Ok(())
+        };
 
-	Ok(())
+        let set = tokio::task::LocalSet::new();
+
+        set.spawn_local(handle_incoming);
+        set.spawn_local(async move {
+            while let Some((topic, msg)) = rx.recv().await {
+                debug!("Received message {:?}: {}", topic, msg);
+                let mut req = b.publish_request();
+                req.get().set_topic(topic);
+                req.get().set_message(&msg);
+                req.send()
+                    .promise
+                    .await
+                    .expect("Failed to send message to broker");
+            }
+        });
+
+        Ok((set, tx))
     }
 }

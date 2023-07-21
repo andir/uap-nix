@@ -43,5 +43,6 @@ in pkgs.mkShell {
     pkgs.rustc
     pkgs.rust-analyzer
     pkgs.rustfmt
+    pkgs.capnproto
   ];
 }

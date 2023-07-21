@@ -7,6 +7,8 @@ use clap::Parser;
 use log::{debug, error, info, warn};
 use util::ProcessStatus;
 use util::{getpid, reboot, sleep_secs, FD};
+use futures::{StreamExt, FutureExt};
+use futures::Stream;
 
 #[derive(Parser, Clone)]
 pub enum Command {
@@ -86,6 +88,11 @@ async fn run_tasks(config: config::Configuration) -> Result<(), error::Error> {
         true,
     )?;
 
+    info!("Launching nanobus");
+
+    let (nanobus, sender) = nanobus::Server::run("/tmp/nanobus.sock").await.expect("Failed to start nanobus");
+    sender.send((nanobus::Topic::Initd, "Nanobus started".to_string())).await.expect("Failed to send message to nanobus");
+
     tasks.push(Box::new(network_task));
 
     if !config.services.is_empty() {
@@ -151,8 +158,17 @@ async fn run_tasks(config: config::Configuration) -> Result<(), error::Error> {
         });
     }
 
+    let mut nanobus = nanobus.into_stream();
+    let mut signal_stream = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup())?;
     loop {
         tokio::select! {
+            // signals
+            signal = signal_stream.recv() => {
+                info!("Ignoring Ctrl-D (SIGHANG): {:?}", signal);
+            }
+
+            
+            _ = nanobus.next() => { }
             // wait for any of them to finish
             value = set.join_next() => {
                 match value {
@@ -173,64 +189,4 @@ async fn run_tasks(config: config::Configuration) -> Result<(), error::Error> {
     }
 
     Ok(())
-
-    //loop {
-    //    let mut new_tasks = vec![];
-
-    //    {
-    //        let mut set = tokio::task::JoinSet::new();
-
-    //        for task in tasks.iter_mut().map(|task| task.wait()) {
-    //            set.spawn(async move { task.await });
-    //        }
-
-    //        // wait for any of the processes to die
-    //        set.join_next().await;
-    //    }
-    //
-    //    for mut task in tasks {
-    //        match task.is_alive().await? {
-    //            ProcessStatus::Alive => {
-    //                new_tasks.push(task);
-    //            }
-    //            ProcessStatus::Dead { status } => {
-    //                warn!(
-    //                    "Task {:?} died with status {}, checking restart strategy",
-    //                    task, status
-    //                );
-    //                match task.restart_strategy() {
-    //                    task::RestartStrategy::Never => {
-    //                        info!("Task {:?} isn't configured to restart.", task);
-    //                    }
-    //                    task::RestartStrategy::Reboot => {
-    //                        error!("Task {:?} requires a device reboot. Rebooting.", task);
-    //                        return Err(error::Error::TaskDied);
-    //                    }
-    //                    task::RestartStrategy::RestartProcess => {
-    //                        info!("Task {:?} is configured fo restart, restarting it", task);
-    //                        match task.restart() {
-    //                            Ok(_) => new_tasks.push(task),
-    //                            Err(e) => {
-    //                                error!(
-    //                                    "Failed to restart task {:?}, giving up on it: {:?}",
-    //                                    task, e
-    //                                );
-    //                            }
-    //                        }
-    //                    }
-    //                }
-    //            }
-    //        }
-    //    }
-
-    //    tasks = new_tasks;
-
-    //    if tasks.len() > 0 {
-    //        debug!("There are still {} children alive, continuing", tasks.len());
-    //        continue;
-    //    }
-    //    debug!("all children must have died 😿");
-
-    //    return Err(error::Error::AllChildrenDied);
-    //}
 }
